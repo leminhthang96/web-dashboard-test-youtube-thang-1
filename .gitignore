@@ -1,0 +1,65 @@
+# Dependencies and package manager caches
+node_modules/
+/.npm/
+/.pnpm-store/
+/.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+
+# Test output
+/coverage/
+
+# Next.js generated files
+/.next/
+/out/
+
+# Build output and caches
+/build/
+/dist/
+/.cache/
+/.turbo/
+.eslintcache
+
+# Operating system and editor temporary files
+.DS_Store
+Thumbs.db
+Desktop.ini
+/.idea/
+*.swp
+*.swo
+*~
+
+# Logs
+*.log
+*.log.*
+/logs/
+
+# Environment secrets (keep the shared example)
+.env
+.env.*
+!.env.example
+
+# Private keys and Firebase Admin service account credentials
+*.pem
+*.key
+*-firebase-adminsdk-*.json
+serviceAccountKey.json
+service-account-key.json
+
+# Firebase local cache and emulator output
+/.firebase/
+firebase-debug.log*
+firestore-debug.log*
+database-debug.log*
+ui-debug.log*
+
+# Vercel local project data
+/.vercel/
+
+# TypeScript generated files
+*.tsbuildinfo
+next-env.d.ts
