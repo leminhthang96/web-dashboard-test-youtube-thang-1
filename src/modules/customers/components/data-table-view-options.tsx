@@ -3,6 +3,7 @@
 import { DropdownMenuTrigger } from "@radix-ui/react-dropdown-menu"
 import type { Table } from "@tanstack/react-table"
 import { Settings2 } from "lucide-react"
+import { customerColumnLabels } from "../services/customer-export"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -17,13 +18,6 @@ interface DataTableViewOptionsProps<TData> {
   table: Table<TData>
 }
 
-const labels: Record<string, string> = {
-  fullName: "Họ và tên",
-  email: "Email",
-  phoneNumber: "Số điện thoại",
-  serviceName: "Dịch vụ",
-}
-
 export function DataTableViewOptions<TData>({
   table,
 }: DataTableViewOptionsProps<TData>) {
@@ -31,8 +25,8 @@ export function DataTableViewOptions<TData>({
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant="outline" size="sm" type="button">
-          <Settings2 />
-          Hiển thị cột
+          <Settings2 className="size-4" aria-hidden="true" />
+          Ẩn/hiện cột
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-[150px]">
@@ -52,7 +46,7 @@ export function DataTableViewOptions<TData>({
                 checked={column.getIsVisible()}
                 onCheckedChange={(value) => column.toggleVisibility(!!value)}
               >
-                {labels[column.id] ?? column.id}
+                {customerColumnLabels[column.id] ?? column.id}
               </DropdownMenuCheckboxItem>
             )
           })}
