@@ -26,21 +26,32 @@ export default function CustomersPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const requestId = useRef(0)
+  const fetching = useRef(false)
 
-  const refreshCustomers = useCallback(async () => {
+  const refreshCustomers = useCallback(async (background = false) => {
+    if (background && fetching.current) return
     const currentRequest = ++requestId.current
-    setLoading(true)
-    setError(null)
+    fetching.current = true
+    if (!background) {
+      setLoading(true)
+      setError(null)
+    }
     try {
       const data = await getCustomers()
-      if (currentRequest === requestId.current) setCustomers(data)
+      if (currentRequest === requestId.current) {
+        setCustomers(data)
+        setError(null)
+      }
     } catch (error) {
       if (currentRequest === requestId.current) {
         setCustomers([])
         setError(getCustomerErrorMessage(error))
       }
     } finally {
-      if (currentRequest === requestId.current) setLoading(false)
+      if (currentRequest === requestId.current) {
+        fetching.current = false
+        setLoading(false)
+      }
     }
   }, [])
 
@@ -53,6 +64,22 @@ export default function CustomersPage() {
     return () => {
       unsubscribe()
       requestId.current++
+    }
+  }, [refreshCustomers])
+
+  useEffect(() => {
+    const refreshVisiblePage = () => {
+      if (document.visibilityState === "visible" && auth.currentUser) {
+        void refreshCustomers(true)
+      }
+    }
+    const timer = window.setInterval(refreshVisiblePage, 15_000)
+    window.addEventListener("focus", refreshVisiblePage)
+    document.addEventListener("visibilitychange", refreshVisiblePage)
+    return () => {
+      window.clearInterval(timer)
+      window.removeEventListener("focus", refreshVisiblePage)
+      document.removeEventListener("visibilitychange", refreshVisiblePage)
     }
   }, [refreshCustomers])
 

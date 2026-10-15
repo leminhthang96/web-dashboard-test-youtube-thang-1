@@ -7,6 +7,7 @@ import {
   query,
   updateDoc,
   where,
+  Timestamp,
 } from "firebase/firestore"
 
 import { auth, db } from "@/lib/firebase/client"
@@ -35,9 +36,14 @@ export async function getCustomers(): Promise<Customer[]> {
     query(collection(db, CUSTOMERS_COLLECTION), where("userId", "==", userId))
   )
   return snapshot.docs.map((document) => {
+    const data = document.data()
     const parsed = customerSchema.safeParse({
-      ...document.data(),
+      ...data,
       id: document.id,
+      createdAt:
+        data.createdAt instanceof Timestamp
+          ? data.createdAt.toDate().toISOString()
+          : data.createdAt,
     })
     if (!parsed.success) {
       throw new Error(

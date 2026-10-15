@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
-import { addDoc, collection, serverTimestamp } from "firebase/firestore"
+import { FieldValue } from "firebase-admin/firestore"
+import { getAdminAuth, getAdminDb } from "@/lib/firebase/admin"
 import { customerFormSchema } from "@/modules/customers/services/types/customer-types"
 
 export const runtime = "nodejs"
@@ -14,7 +15,7 @@ export function OPTIONS() {
   return new NextResponse(null, { status: 204, headers: CORS_HEADERS })
 }
 
-// Public lead capture: no session, token, or Admin SDK credentials required.
+// Public callers need no login. Ownership is controlled by server configuration.
 export async function POST(request: Request) {
   const contentType = (request.headers.get("content-type") ?? "application/json")
     .split(";")[0]
@@ -66,14 +67,31 @@ export async function POST(request: Request) {
     )
   }
 
+  const ownerId = process.env.CUSTOMER_OWNER_UID?.trim()
+  if (!ownerId) {
+    console.error("[Public customers POST] CUSTOMER_OWNER_UID is missing")
+    return NextResponse.json(
+      {
+        success: false,
+        message: "Chưa cấu hình tài khoản nhận khách hàng. Vui lòng liên hệ quản trị viên.",
+      },
+      { status: 503, headers: CORS_HEADERS }
+    )
+  }
+
   try {
-    // Initialize only after validation so configuration failures return JSON.
-    const { db } = await import("@/lib/firebase/client")
-    const customer = await addDoc(collection(db, "customers"), {
+    // Verify the configured recipient before writing; never trust a body userId.
+    const owner = await getAdminAuth().getUser(ownerId)
+    if (owner.disabled) {
+      return NextResponse.json(
+        { success: false, message: "Tài khoản nhận khách hàng đang bị vô hiệu hóa." },
+        { status: 503, headers: CORS_HEADERS }
+      )
+    }
+    const customer = await getAdminDb().collection("customers").add({
       ...result.data,
-      // Public submissions cannot choose another account as their owner.
-      userId: "",
-      createdAt: serverTimestamp(),
+      userId: owner.uid,
+      createdAt: FieldValue.serverTimestamp(),
     })
 
     return NextResponse.json(

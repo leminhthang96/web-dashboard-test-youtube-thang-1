@@ -29,6 +29,9 @@ Mỗi document có bốn trường nghiệp vụ dạng chuỗi và trường s�
   UID của tài khoản sở hữu từ Authentication rồi thêm `userId` tương ứng vào
   từng document. Không tự gán toàn bộ dữ liệu cũ cho người đang đăng nhập.
 - Không tự tạo dữ liệu mẫu, không sử dụng dữ liệu giả khi đọc Firestore lỗi.
+- Khách từ API landing page tự thuộc tài khoản `CUSTOMER_OWNER_UID` cấu hình
+  phía server; xem [cấu hình API](./customers-public-api.md). Timestamp Firestore
+  được chuyển sang ISO khi tải danh sách.
 
 ## Thao tác
 
@@ -38,6 +41,8 @@ Mỗi document có bốn trường nghiệp vụ dạng chuỗi và trường s�
 - Nút Xóa mở Alert Dialog với tên/email khách hàng và nút xác nhận màu đỏ.
   Chỉ xóa sau khi xác nhận; nếu Firestore trả lỗi, hộp thoại giữ nguyên để thử lại.
 - Có tìm kiếm, phân trang, chọn cột, trạng thái đang tải, danh sách trống và lỗi.
+- `/customer` chuyển đến `/customers`. Khi trang hiển thị, dữ liệu được tải lại
+  mỗi 15 giây và khi quay lại tab để nhận khách hàng mới từ API.
 
 ## Kiểm tra
 
