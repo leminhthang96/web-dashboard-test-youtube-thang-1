@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server"
 import { addDoc, collection, serverTimestamp } from "firebase/firestore"
-import { db } from "@/lib/firebase/client"
 import { customerFormSchema } from "@/modules/customers/services/types/customer-types"
+
+export const runtime = "nodejs"
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -15,12 +16,40 @@ export function OPTIONS() {
 
 // Public lead capture: no session, token, or Admin SDK credentials required.
 export async function POST(request: Request) {
+  const contentType = (request.headers.get("content-type") ?? "application/json")
+    .split(";")[0]
+    .trim()
+    .toLowerCase()
+  const isForm =
+    contentType === "multipart/form-data" ||
+    contentType === "application/x-www-form-urlencoded"
+
+  if (contentType !== "application/json" && !isForm) {
+    return NextResponse.json(
+      {
+        success: false,
+        message: "Vui lòng gửi JSON, form-data hoặc x-www-form-urlencoded.",
+      },
+      { status: 400, headers: CORS_HEADERS }
+    )
+  }
+
   let body: unknown
   try {
-    body = await request.json()
+    if (isForm) {
+      const form = await request.formData()
+      body = {
+        fullName: form.get("fullName"),
+        email: form.get("email"),
+        phoneNumber: form.get("phoneNumber"),
+        serviceName: form.get("serviceName"),
+      }
+    } else {
+      body = await request.json()
+    }
   } catch {
     return NextResponse.json(
-      { success: false, message: "Nội dung yêu cầu phải là JSON hợp lệ." },
+      { success: false, message: "Không đọc được dữ liệu. Kiểm tra định dạng gửi." },
       { status: 400, headers: CORS_HEADERS }
     )
   }
@@ -38,6 +67,8 @@ export async function POST(request: Request) {
   }
 
   try {
+    // Initialize only after validation so configuration failures return JSON.
+    const { db } = await import("@/lib/firebase/client")
     const customer = await addDoc(collection(db, "customers"), {
       ...result.data,
       // Public submissions cannot choose another account as their owner.

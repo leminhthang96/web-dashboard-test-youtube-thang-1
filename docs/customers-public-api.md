@@ -6,9 +6,14 @@ Client SDK và các biến `NEXT_PUBLIC_FIREBASE_*` hiện có của dashboard.
 
 ## Gửi dữ liệu
 
-Gửi JSON với `Content-Type: application/json`. Cả 4 trường đều bắt buộc;
+Nhận cả ba kiểu body: JSON (`application/json`), `form-data`
+(`multipart/form-data`) và `x-www-form-urlencoded`. Cả 4 trường đều bắt buộc;
 `phoneNumber` phải là chuỗi để giữ số 0 đầu. Email phải đúng định dạng.
 `serviceName` là văn bản tự do.
+
+Trong Postman, đặt Authorization thành **No Auth**, chọn **Body → raw → JSON**
+hoặc một trong hai kiểu form trên. Với `form-data`, để Postman tự đặt
+Content-Type và boundary, các trường đều có kiểu **Text**.
 
 ```js
 // Gọi trong submit handler của form trên landing page.
@@ -50,7 +55,8 @@ trùng với 4 tên trường trên. API hỗ trợ CORS cho mọi origin và pr
   }
   ```
 
-- **400**: JSON sai hoặc dữ liệu không hợp lệ, `success: false` và thông báo
+- **400**: JSON/form sai, Content-Type không hỗ trợ hoặc dữ liệu không hợp lệ,
+  `success: false` và thông báo
   tiếng Việt; lỗi validation có thêm `errors` theo trường.
 - **500**: Firestore không lưu được, `success: false`. Xem mã lỗi trong log
   server để kiểm tra kết nối hoặc Firestore Rules.
