@@ -41,7 +41,12 @@ export function getCustomerColumns(
       header: "Số điện thoại",
       enableSorting: false,
     },
-    { accessorKey: "serviceName", header: "Dịch vụ", enableSorting: false },
+    {
+      accessorKey: "serviceName",
+      header: "Dịch vụ",
+      enableSorting: false,
+      filterFn: "equals",
+    },
     {
       id: "actions",
       header: () => <div className="text-right">Thao tác</div>,

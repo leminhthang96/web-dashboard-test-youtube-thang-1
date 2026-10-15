@@ -3,6 +3,7 @@
 import { useState } from "react"
 import {
   type ColumnDef,
+  type ColumnFiltersState,
   type SortingState,
   type VisibilityState,
   flexRender,
@@ -37,15 +38,17 @@ export function DataTable({ columns, data, onAddCustomer }: DataTableProps) {
   const [sorting, setSorting] = useState<SortingState>([])
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({})
   const [globalFilter, setGlobalFilter] = useState("")
+  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
 
   const table = useReactTable({
     data,
     columns,
-    state: { sorting, columnVisibility, globalFilter },
+    state: { sorting, columnVisibility, globalFilter, columnFilters },
     getRowId: (row) => row.id,
     onSortingChange: setSorting,
     onColumnVisibilityChange: setColumnVisibility,
     onGlobalFilterChange: setGlobalFilter,
+    onColumnFiltersChange: setColumnFilters,
     globalFilterFn: "includesString",
     sortDescFirst: false,
     enableSortingRemoval: true,
@@ -109,7 +112,7 @@ export function DataTable({ columns, data, onAddCustomer }: DataTableProps) {
                   colSpan={table.getVisibleLeafColumns().length}
                   className="h-32 text-center text-muted-foreground"
                 >
-                  {globalFilter
+                  {globalFilter || columnFilters.length > 0
                     ? "Không tìm thấy khách hàng phù hợp."
                     : "Chưa có khách hàng. Hãy thêm khách hàng đầu tiên."}
                 </TableCell>
