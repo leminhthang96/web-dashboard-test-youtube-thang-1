@@ -17,23 +17,26 @@ interface DataTableViewOptionsProps<TData> {
   table: Table<TData>
 }
 
+const labels: Record<string, string> = {
+  fullName: "Họ và tên",
+  email: "Email",
+  phoneNumber: "Số điện thoại",
+  serviceName: "Dịch vụ",
+}
+
 export function DataTableViewOptions<TData>({
   table,
 }: DataTableViewOptionsProps<TData>) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button
-          variant="outline"
-          size="sm"
-          className="ml-auto hidden h-8 lg:flex cursor-pointer mr-2"
-        >
+        <Button variant="outline" size="sm" type="button">
           <Settings2 />
-          View
+          Hiển thị cột
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-[150px]">
-        <DropdownMenuLabel>Toggle columns</DropdownMenuLabel>
+        <DropdownMenuLabel>Hiển thị cột</DropdownMenuLabel>
         <DropdownMenuSeparator />
         {table
           .getAllColumns()
@@ -49,7 +52,7 @@ export function DataTableViewOptions<TData>({
                 checked={column.getIsVisible()}
                 onCheckedChange={(value) => column.toggleVisibility(!!value)}
               >
-                {column.id}
+                {labels[column.id] ?? column.id}
               </DropdownMenuCheckboxItem>
             )
           })}

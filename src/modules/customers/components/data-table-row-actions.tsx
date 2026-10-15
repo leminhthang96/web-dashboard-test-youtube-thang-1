@@ -1,280 +1,139 @@
 "use client"
 
-import * as React from "react"
+import { useRef, useState } from "react"
 import type { Row } from "@tanstack/react-table"
-import { MoreHorizontal } from "lucide-react"
-
+import { Loader2, Pencil, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuShortcut,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
-import {
-  priorities,
-  services,
-  statuses,
-} from "@/modules/customers/services/customer-mock-data"
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 import {
   customerSchema,
   type Customer,
-} from "@/modules/customers/services/types/customer-types"
+  type CustomerFormValues,
+} from "../services/types/customer-types"
+import { getCustomerErrorMessage } from "../services/customer-errors"
+import { CustomerFormDialog } from "./customer-form-dialog"
 
-interface DataTableRowActionsProps<TData> {
-  row: Row<TData>
-  onUpdateCustomer?: (customer: Customer) => void | Promise<void>
-  onDeleteCustomer?: (customerId: string) => void | Promise<void>
-  onDuplicateCustomer?: (customer: Customer) => void | Promise<void>
+export interface CustomerColumnActions {
+  onUpdateCustomer?: (id: string, values: CustomerFormValues) => Promise<void>
+  onDeleteCustomer?: (id: string) => Promise<void>
 }
 
-export function DataTableRowActions<TData>({
+export function DataTableRowActions({
   row,
   onUpdateCustomer,
   onDeleteCustomer,
-  onDuplicateCustomer,
-}: DataTableRowActionsProps<TData>) {
+}: {
+  row: Row<Customer>
+} & CustomerColumnActions) {
+  const [editOpen, setEditOpen] = useState(false)
+  const [deleteOpen, setDeleteOpen] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const pending = useRef(false)
   const parsed = customerSchema.safeParse(row.original)
-  const [editOpen, setEditOpen] = React.useState(false)
-  const [draft, setDraft] = React.useState<Customer | null>(null)
-  const [isSaving, setIsSaving] = React.useState(false)
-  const [error, setError] = React.useState<string | null>(null)
+  if (!parsed.success) return null
+  // Keep this reference stable so an unrelated rerender does not reset the form.
+  const customer = row.original
 
-  if (!parsed.success) {
-    return null
-  }
-
-  const customer = parsed.data
-
-  function openEditDialog() {
-    setDraft(customer)
+  async function handleDelete() {
+    if (!onDeleteCustomer || pending.current) return
+    pending.current = true
+    setDeleting(true)
     setError(null)
-    setEditOpen(true)
-  }
-
-  async function handleSaveEdit() {
-    if (!draft?.fullName.trim()) {
-      setError("Full name is required")
-      return
-    }
-
     try {
-      setIsSaving(true)
-      setError(null)
-      await onUpdateCustomer?.({ ...draft, fullName: draft.fullName.trim() })
-      setEditOpen(false)
-    } catch (saveError) {
-      setError(
-        saveError instanceof Error
-          ? saveError.message
-          : "Failed to update customer"
-      )
+      await onDeleteCustomer(customer.id)
+      setDeleteOpen(false)
+    } catch (error) {
+      setError(getCustomerErrorMessage(error))
     } finally {
-      setIsSaving(false)
+      pending.current = false
+      setDeleting(false)
     }
   }
 
   return (
-    <>
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button
-            variant="ghost"
-            className="flex h-8 w-8 p-0 data-[state=open]:bg-muted cursor-pointer"
-          >
-            <MoreHorizontal />
-            <span className="sr-only">Open menu</span>
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-[160px]">
-          <DropdownMenuItem className="cursor-pointer" onClick={openEditDialog}>
-            Edit Customer
-          </DropdownMenuItem>
-          <DropdownMenuItem
-            className="cursor-pointer"
-            onClick={() => onDuplicateCustomer?.(customer)}
-          >
-            Duplicate
-          </DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem
-            className="cursor-pointer"
-            variant="destructive"
-            onClick={() => onDeleteCustomer?.(customer.id)}
-          >
-            Delete
-            <DropdownMenuShortcut className="text-destructive">
-              ⌘⌫
-            </DropdownMenuShortcut>
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
-
-      <Dialog open={editOpen} onOpenChange={setEditOpen}>
-        <DialogContent className="sm:max-w-[525px]">
-          <DialogHeader>
-            <DialogTitle>Edit Customer</DialogTitle>
-            <DialogDescription>
-              Update the customer details and save them to Firestore.
-            </DialogDescription>
-          </DialogHeader>
-
-          {draft ? (
-            <div className="space-y-5">
-              {error ? (
-                <p className="text-sm text-destructive">{error}</p>
-              ) : null}
-              <div className="space-y-2">
-                <Label htmlFor={`customer-name-${customer.id}`}>
-                  Full Name
-                </Label>
-                <Input
-                  id={`customer-name-${customer.id}`}
-                  value={draft.fullName}
-                  onChange={(event) =>
-                    setDraft((current) =>
-                      current
-                        ? { ...current, fullName: event.target.value }
-                        : current
-                    )
-                  }
-                />
-              </div>
-
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label>Email</Label>
-                  <Input
-                    value={draft.email}
-                    onChange={(event) =>
-                      setDraft((current) =>
-                        current
-                          ? { ...current, email: event.target.value }
-                          : current
-                      )
-                    }
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Phone</Label>
-                  <Input
-                    value={draft.phoneNumber}
-                    onChange={(event) =>
-                      setDraft((current) =>
-                        current
-                          ? { ...current, phoneNumber: event.target.value }
-                          : current
-                      )
-                    }
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label>Service</Label>
-                  <Select
-                    value={draft.serviceName}
-                    onValueChange={(value) =>
-                      setDraft((current) =>
-                        current ? { ...current, serviceName: value } : current
-                      )
-                    }
-                  >
-                    <SelectTrigger className="w-full">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {services.map((service) => (
-                        <SelectItem key={service.value} value={service.value}>
-                          {service.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label>Status</Label>
-                  <Select
-                    value={draft.status}
-                    onValueChange={(value) =>
-                      setDraft((current) =>
-                        current ? { ...current, status: value } : current
-                      )
-                    }
-                  >
-                    <SelectTrigger className="w-full">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {statuses.map((status) => (
-                        <SelectItem key={status.value} value={status.value}>
-                          {status.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Priority</Label>
-                <Select
-                  value={draft.priority}
-                  onValueChange={(value) =>
-                    setDraft((current) =>
-                      current ? { ...current, priority: value } : current
-                    )
-                  }
-                >
-                  <SelectTrigger className="w-full md:w-1/2">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {priorities.map((priority) => (
-                      <SelectItem key={priority.value} value={priority.value}>
-                        {priority.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-          ) : null}
-
-          <DialogFooter>
+    <div className="flex items-center justify-end gap-1">
+      {onUpdateCustomer && (
+        <CustomerFormDialog
+          open={editOpen}
+          onOpenChange={setEditOpen}
+          customer={customer}
+          onSubmit={(values) => onUpdateCustomer(customer.id, values)}
+          trigger={
             <Button
-              variant="outline"
-              onClick={() => setEditOpen(false)}
-              disabled={isSaving}
+              type="button"
+              variant="ghost"
+              size="sm"
+              aria-label={`Sửa khách hàng ${customer.fullName}`}
             >
-              Cancel
+              <Pencil className="size-4" />
+              Sửa
             </Button>
-            <Button onClick={handleSaveEdit} disabled={isSaving}>
-              {isSaving ? "Saving..." : "Save changes"}
+          }
+        />
+      )}
+      {onDeleteCustomer && (
+        <AlertDialog
+          open={deleteOpen}
+          onOpenChange={(value) => {
+            if (pending.current) return
+            setError(null)
+            setDeleteOpen(value)
+          }}
+        >
+          <AlertDialogTrigger asChild>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+              aria-label={`Xóa khách hàng ${customer.fullName}`}
+            >
+              <Trash2 className="size-4" />
+              Xóa
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </>
+          </AlertDialogTrigger>
+          <AlertDialogContent aria-busy={deleting}>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Xóa khách hàng?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Bạn có chắc muốn xóa khách hàng{" "}
+                <strong>{customer.fullName}</strong> ({customer.email})? Thao
+                tác này không thể hoàn tác.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            {error && (
+              <p role="alert" className="text-sm text-destructive">
+                {error}
+              </p>
+            )}
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={deleting}>Hủy</AlertDialogCancel>
+              <AlertDialogAction
+                variant="destructive"
+                disabled={deleting}
+                onClick={(event) => {
+                  event.preventDefault()
+                  void handleDelete()
+                }}
+              >
+                {deleting && <Loader2 className="size-4 animate-spin" />}
+                {deleting ? "Đang xóa..." : "Xóa khách hàng"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      )}
+    </div>
   )
 }

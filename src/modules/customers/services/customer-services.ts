@@ -1,150 +1,75 @@
-import { onAuthStateChanged, type User } from "firebase/auth"
 import {
+  addDoc,
   collection,
   deleteDoc,
   doc,
-  getDocs,
+  getDocsFromServer,
   query,
-  setDoc,
   updateDoc,
   where,
-  writeBatch,
 } from "firebase/firestore"
 
 import { auth, db } from "@/lib/firebase/client"
-import { customerMockData } from "./customer-mock-data"
-import type { Customer } from "./types/customer-types"
+import {
+  customerFormSchema,
+  customerSchema,
+  type Customer,
+  type CustomerFormValues,
+} from "./types/customer-types"
 
 const CUSTOMERS_COLLECTION = "customers"
 
-// Cache for the auth-ready promise so we only subscribe once.
-let authReadyPromise: Promise<User | null> | null = null
-
-/**
- * Resolves once Firebase Auth has finished initialising (on page reload
- * the restored session is async).  Returns the current user or null.
- */
-function waitForAuth(): Promise<User | null> {
-  if (!authReadyPromise) {
-    authReadyPromise = new Promise((resolve) => {
-      const unsubscribe = onAuthStateChanged(auth, (user) => {
-        // onAuthStateChanged fires once immediately with the current state.
-        // Unsubscribe right away – we only need the initial value.
-        unsubscribe()
-        resolve(user)
-      })
-    })
-  }
-  return authReadyPromise
-}
-
-/**
- * RLS (Row-Level Security): Returns the current authenticated user's UID.
- * Waits for Firebase Auth to finish restoring the session, then returns
- * the UID.  Throws if no user is signed in.
- */
 async function getCurrentUserId(): Promise<string> {
-  const user = await waitForAuth()
+  await auth.authStateReady()
+  // Read the current user each time; never cache a previous login.
+  const user = auth.currentUser
   if (!user) {
-    throw new Error(
-      "Authentication required. Please sign in to manage customers."
-    )
+    throw new Error("Vui lòng đăng nhập để quản lý khách hàng.")
   }
   return user.uid
 }
 
-/**
- * Get all customers owned by the current authenticated user (RLS).
- * Queries Firestore with a userId filter to enforce row-level security.
- */
 export async function getCustomers(): Promise<Customer[]> {
   const userId = await getCurrentUserId()
-  const q = query(
-    collection(db, CUSTOMERS_COLLECTION),
-    where("userId", "==", userId)
+  const snapshot = await getDocsFromServer(
+    query(collection(db, CUSTOMERS_COLLECTION), where("userId", "==", userId))
   )
-  const snapshot = await getDocs(q)
-
-  if (snapshot.empty) {
-    return []
-  }
-
-  const result = snapshot.docs.map((document) => {
-    const data = document.data() as Customer
-
-    return {
-      ...data,
-      id: data.id ?? document.id,
-    }
-  })
-
-  return JSON.parse(JSON.stringify(result))
-}
-
-/**
- * Seed mock customer data for the current user (RLS).
- * Each mock customer is tagged with the current user's UID.
- */
-export async function seedCustomersWithClient(): Promise<Customer[]> {
-  const userId = await getCurrentUserId()
-  const batch = writeBatch(db)
-
-  customerMockData.forEach((customer) => {
-    const seededCustomer = { ...customer, userId }
-    batch.set(doc(db, CUSTOMERS_COLLECTION, customer.id), seededCustomer, {
-      merge: true,
+  return snapshot.docs.map((document) => {
+    const parsed = customerSchema.safeParse({
+      ...document.data(),
+      id: document.id,
     })
+    if (!parsed.success) {
+      throw new Error(
+        "Dữ liệu khách hàng không hợp lệ. Vui lòng kiểm tra các trường họ tên, email, số điện thoại và dịch vụ trong Firestore."
+      )
+    }
+    return parsed.data
   })
-
-  await batch.commit()
-  return getCustomers()
 }
 
-/**
- * Create a new customer record owned by the current user (RLS).
- * The userId field is set automatically from the authenticated session.
- */
-export async function createCustomer(customer: Customer): Promise<Customer> {
+export async function createCustomer(
+  values: CustomerFormValues
+): Promise<Customer> {
   const userId = await getCurrentUserId()
-  const customerWithOwner = { ...customer, userId }
-
-  await setDoc(doc(db, CUSTOMERS_COLLECTION, customer.id), customerWithOwner)
-
-  return customerWithOwner
+  const payload = { ...customerFormSchema.parse(values), userId }
+  const document = await addDoc(collection(db, CUSTOMERS_COLLECTION), payload)
+  return { ...payload, id: document.id }
 }
 
-/**
- * Update a customer record (RLS).
- * The userId is preserved from the existing record to maintain ownership.
- */
-export async function updateCustomer(customer: Customer): Promise<Customer> {
-  const userId = await getCurrentUserId()
-  const customerWithOwner = { ...customer, userId }
-
-  await updateDoc(doc(db, CUSTOMERS_COLLECTION, customer.id), customerWithOwner)
-
-  return customerWithOwner
+export async function updateCustomer(
+  customerId: string,
+  values: CustomerFormValues
+): Promise<CustomerFormValues> {
+  await getCurrentUserId()
+  const payload = customerFormSchema.parse(values)
+  // Only edit business fields; preserve owner and legacy metadata.
+  // Firestore Rules enforce ownership for this write.
+  await updateDoc(doc(db, CUSTOMERS_COLLECTION, customerId), payload)
+  return payload
 }
 
-/**
- * Delete a customer record owned by the current user (RLS).
- * Firestore security rules should also verify ownership server-side.
- */
 export async function deleteCustomer(customerId: string): Promise<void> {
   await getCurrentUserId()
   await deleteDoc(doc(db, CUSTOMERS_COLLECTION, customerId))
-}
-
-/**
- * Compute statistics from a list of customers.
- */
-export function getCustomerStats(customers: Customer[]) {
-  const total = customers.length
-
-  return {
-    total,
-    new: customers.filter((c) => c.status === "new").length,
-    inProgress: customers.filter((c) => c.status === "in progress").length,
-    converted: customers.filter((c) => c.status === "converted").length,
-  }
 }

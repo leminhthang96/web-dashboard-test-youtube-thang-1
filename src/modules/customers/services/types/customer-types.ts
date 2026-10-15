@@ -1,15 +1,39 @@
 import { z } from "zod"
 
-// Customer schema with RLS (Row-Level Security) userId field.
-// Each customer record is owned by the authenticated user who created it.
+export const customerFormSchema = z.object({
+  fullName: z
+    .string()
+    .trim()
+    .min(1, "Vui lòng nhập họ tên")
+    .max(150, "Họ tên tối đa 150 ký tự"),
+  email: z.string().trim().pipe(z.email("Email không hợp lệ")),
+  phoneNumber: z
+    .string()
+    .trim()
+    .min(1, "Vui lòng nhập số điện thoại")
+    .max(30, "Số điện thoại tối đa 30 ký tự")
+    .regex(
+      /^[+\d\s().-]+$/,
+      "Số điện thoại chỉ gồm chữ số và các ký tự + ( ) . -"
+    ),
+  serviceName: z
+    .string()
+    .trim()
+    .min(1, "Vui lòng nhập dịch vụ")
+    .max(200, "Tên dịch vụ tối đa 200 ký tự"),
+})
+
+export type CustomerFormValues = z.infer<typeof customerFormSchema>
+
+// Accept legacy records without status/priority. Ownership stays required.
 export const customerSchema = z.object({
   id: z.string(),
   fullName: z.string(),
   email: z.string(),
   phoneNumber: z.string(),
   serviceName: z.string(),
-  status: z.string(),
-  priority: z.string(),
+  status: z.string().optional(),
+  priority: z.string().optional(),
   userId: z.string(),
   createdAt: z.string().optional(),
 })
