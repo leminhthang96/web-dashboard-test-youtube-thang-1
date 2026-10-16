@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { addDoc, collection, serverTimestamp } from "firebase/firestore"
 import { customerFormSchema } from "@/modules/customers/services/types/customer-types"
+import { notifyCustomerRegistration } from "@/lib/telegram/customer-notification"
 
 export const runtime = "nodejs"
 
@@ -74,6 +75,9 @@ export async function POST(request: Request) {
       userId: "",
       createdAt: serverTimestamp(),
     })
+
+    // Await the bounded send so the serverless request does not end mid-send.
+    await notifyCustomerRegistration(customer.id, result.data)
 
     return NextResponse.json(
       {

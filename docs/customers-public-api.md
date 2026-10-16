@@ -34,7 +34,22 @@ Dashboard tải dữ liệu mỗi 15 giây khi tab đang hiển thị, khi quay 
 hoặc khi bấm Tải lại. Thêm/sửa/xóa ghi trực tiếp vào cùng collection.
 Không cần chạy migration hoặc gán tài khoản cho khách gửi từ API.
 
-## Triển khai
+## Thông báo Telegram
+
+Sau khi Firestore lưu thành công, API gửi thông báo gồm họ tên, email, số điện
+thoại, dịch vụ và mã đăng ký đến nhóm được cấu hình bởi `TELEGRAM_CHAT_ID`.
+Đặt `TELEGRAM_BOT_TOKEN` và `TELEGRAM_CHAT_ID` trong `.env.local` khi chạy local,
+hoặc trong Environment Variables trên Vercel khi triển khai. Bot phải là thành
+viên của nhóm và có quyền gửi tin. Không gửi token từ landing page.
+
+API chờ gửi tin tối đa 8 giây. Thiếu cấu hình, Telegram từ chối hoặc lỗi mạng
+đều được ghi log nhưng không thay đổi phản hồi 201 của khách đã lưu thành công.
+Không tự gửi lại khi lỗi; không gửi thông báo cho dữ liệu không hợp lệ hoặc
+khi Firestore lưu thất bại. Request của landing page vẫn giữ bốn trường cũ.
+
+Tích hợp sử dụng [Telegram Bot API sendMessage](https://core.telegram.org/bots/api#sendmessage).
+
+## Triển khai ứng dụng
 
 - Local và Vercel cần NEXT_PUBLIC_FIREBASE_* của cùng Firebase project.
 - API này dùng Firebase Client SDK, không cần Firebase Admin hoặc UID nhận.
