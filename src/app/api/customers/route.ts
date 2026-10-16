@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server"
-import { FieldValue } from "firebase-admin/firestore"
-import { getAdminAuth, getAdminDb } from "@/lib/firebase/admin"
+import { addDoc, collection, serverTimestamp } from "firebase/firestore"
 import { customerFormSchema } from "@/modules/customers/services/types/customer-types"
 
 export const runtime = "nodejs"
@@ -15,7 +14,7 @@ export function OPTIONS() {
   return new NextResponse(null, { status: 204, headers: CORS_HEADERS })
 }
 
-// Public callers need no login. Ownership is controlled by server configuration.
+// Public lead capture into the dashboard's shared customer collection.
 export async function POST(request: Request) {
   const contentType = (request.headers.get("content-type") ?? "application/json")
     .split(";")[0]
@@ -67,31 +66,13 @@ export async function POST(request: Request) {
     )
   }
 
-  const ownerId = process.env.CUSTOMER_OWNER_UID?.trim()
-  if (!ownerId) {
-    console.error("[Public customers POST] CUSTOMER_OWNER_UID is missing")
-    return NextResponse.json(
-      {
-        success: false,
-        message: "Chưa cấu hình tài khoản nhận khách hàng. Vui lòng liên hệ quản trị viên.",
-      },
-      { status: 503, headers: CORS_HEADERS }
-    )
-  }
-
   try {
-    // Verify the configured recipient before writing; never trust a body userId.
-    const owner = await getAdminAuth().getUser(ownerId)
-    if (owner.disabled) {
-      return NextResponse.json(
-        { success: false, message: "Tài khoản nhận khách hàng đang bị vô hiệu hóa." },
-        { status: 503, headers: CORS_HEADERS }
-      )
-    }
-    const customer = await getAdminDb().collection("customers").add({
+    const { db } = await import("@/lib/firebase/client")
+    const customer = await addDoc(collection(db, "customers"), {
       ...result.data,
-      userId: owner.uid,
-      createdAt: FieldValue.serverTimestamp(),
+      // Kept for compatibility with public-create rules; never used to filter.
+      userId: "",
+      createdAt: serverTimestamp(),
     })
 
     return NextResponse.json(

@@ -4,9 +4,7 @@ import {
   deleteDoc,
   doc,
   getDocsFromServer,
-  query,
   updateDoc,
-  where,
   Timestamp,
 } from "firebase/firestore"
 
@@ -31,9 +29,9 @@ async function getCurrentUserId(): Promise<string> {
 }
 
 export async function getCustomers(): Promise<Customer[]> {
-  const userId = await getCurrentUserId()
+  await getCurrentUserId()
   const snapshot = await getDocsFromServer(
-    query(collection(db, CUSTOMERS_COLLECTION), where("userId", "==", userId))
+    collection(db, CUSTOMERS_COLLECTION)
   )
   return snapshot.docs.map((document) => {
     const data = document.data()
@@ -69,8 +67,8 @@ export async function updateCustomer(
 ): Promise<CustomerFormValues> {
   await getCurrentUserId()
   const payload = customerFormSchema.parse(values)
-  // Only edit business fields; preserve owner and legacy metadata.
-  // Firestore Rules enforce ownership for this write.
+  // Edit business fields and preserve submission metadata.
+  // Firestore Rules require a signed-in dashboard user for this write.
   await updateDoc(doc(db, CUSTOMERS_COLLECTION, customerId), payload)
   return payload
 }

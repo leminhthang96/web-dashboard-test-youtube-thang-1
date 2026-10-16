@@ -1,48 +1,26 @@
 # Quản lý khách hàng
 
-Trang `/customers` sử dụng Firebase Client SDK với cấu hình có sẵn trong
-`.env.local` (hoặc Environment Variables trên Vercel). Các thao tác đọc, thêm,
-sửa, xóa làm việc trực tiếp với collection `customers`.
+`/customer` chuyển đến `/customers`. Dashboard hiển thị danh sách khách hàng
+chung cho người đã đăng nhập, gồm đăng ký từ landing page và khách thêm trực
+tiếp. Cả hai luồng đều lưu trong collection `customers` của Firestore.
 
-## Dữ liệu và quyền sở hữu
+## Dữ liệu và thao tác
 
-Mỗi document có bốn trường nghiệp vụ dạng chuỗi và trường sở hữu `userId`:
+- Bốn trường bắt buộc: fullName, email, phoneNumber, serviceName.
+- Firestore tự sinh ID. userId là metadata tùy chọn, không dùng để lọc danh sách.
+- Timestamp Firestore được chuyển sang ISO khi đọc dữ liệu.
+- Thêm/sửa kiểm tra dữ liệu trước khi ghi; sửa giữ nguyên metadata.
+- Xóa cần xác nhận; lỗi Firestore không được coi là thành công.
+- Có tìm kiếm, lọc, sắp xếp, phân trang, xuất file và ẩn/hiện cột.
+- Tải lại mỗi 15 giây khi tab hiển thị, khi quay lại tab hoặc bấm Tải lại.
+- Không cần gán UID hoặc migration dữ liệu cũ. Không dùng dữ liệu mẫu khi lỗi.
 
-```json
-{
-  "fullName": "Lê Minh Thắng",
-  "email": "thanglmt@softech.vn",
-  "phoneNumber": "1234567890",
-  "serviceName": "Text",
-  "userId": "UID_FIREBASE_CUA_NGUOI_SO_HUU"
-}
-```
+## Phân quyền
 
-- `userId` là UID từ Firebase Authentication, không phải email. Khi tạo mới,
-  ứng dụng tự gắn UID của người đang đăng nhập; form không cho chỉnh trường này.
-- Firestore tự sinh document ID. Không cần thêm trường `id` vào dữ liệu.
-- Khi sửa, chỉ bốn trường nghiệp vụ được cập nhật; các metadata cũ được giữ lại.
-- Danh sách truy vấn `where("userId", "==", uid)`. Firestore Security Rules phải
-  áp dụng quy tắc sở hữu trong `firestore.rules` của project. Lọc ở giao diện
-  không thay thế việc triển khai Rules lên Firebase.
-- Bản ghi cũ chỉ có bốn trường sẽ chưa hiển thị. Trong Firebase Console, lấy
-  UID của tài khoản sở hữu từ Authentication rồi thêm `userId` tương ứng vào
-  từng document. Không tự gán toàn bộ dữ liệu cũ cho người đang đăng nhập.
-- Không tự tạo dữ liệu mẫu, không sử dụng dữ liệu giả khi đọc Firestore lỗi.
-- Khách từ API landing page tự thuộc tài khoản `CUSTOMER_OWNER_UID` cấu hình
-  phía server; xem [cấu hình API](./customers-public-api.md). Timestamp Firestore
-  được chuyển sang ISO khi tải danh sách.
-
-## Thao tác
-
-- Thêm và sửa trong Dialog, kiểm tra dữ liệu trước khi lưu.
-- Cột Họ và tên (`fullName`) và Email có chu kỳ: tăng dần → giảm dần → bỏ sắp xếp.
-- Dịch vụ là văn bản tự do. Số điện thoại được giữ dạng chuỗi để không mất số 0 đầu.
-- Nút Xóa mở Alert Dialog với tên/email khách hàng và nút xác nhận màu đỏ.
-  Chỉ xóa sau khi xác nhận; nếu Firestore trả lỗi, hộp thoại giữ nguyên để thử lại.
-- Có tìm kiếm, phân trang, chọn cột, trạng thái đang tải, danh sách trống và lỗi.
-- `/customer` chuyển đến `/customers`. Khi trang hiển thị, dữ liệu được tải lại
-  mỗi 15 giây và khi quay lại tab để nhận khách hàng mới từ API.
+API public chỉ tạo khách hàng; xem [hướng dẫn API](./customers-public-api.md).
+Dashboard yêu cầu đăng nhập để đọc/thêm/sửa/xóa. Các tài khoản dashboard cùng
+quản lý danh sách của ứng dụng. Rules tương ứng nằm trong firestore.rules;
+người chưa đăng nhập không được đọc, cập nhật hoặc xóa danh sách.
 
 ## Kiểm tra
 
@@ -51,6 +29,5 @@ npx tsc --noEmit
 npm run build
 ```
 
-Để kiểm tra kết nối thực tế, đăng nhập, thêm một khách hàng thử nghiệm, tải lại
-trang, sửa và tải lại lần nữa; cuối cùng kiểm tra Hủy/Xác nhận trong hộp thoại
-xóa. Dùng hai tài khoản khác nhau để xác nhận danh sách được tách theo UID.
+Gửi API với bốn trường, xác nhận trả 201 và xuất hiện trên dashboard.
+Thêm/sửa/xóa trên dashboard rồi kiểm tra Firestore tương ứng.

@@ -134,7 +134,7 @@ export default function CustomersPage() {
         <div className="space-y-1">
           <h1 className="text-2xl font-bold tracking-tight">Khách hàng</h1>
           <p className="text-sm text-muted-foreground">
-            Quản lý thông tin và dịch vụ của khách hàng thuộc tài khoản của bạn.
+            Quản lý khách hàng đăng ký từ landing page và thêm trên dashboard.
           </p>
         </div>
         <Button

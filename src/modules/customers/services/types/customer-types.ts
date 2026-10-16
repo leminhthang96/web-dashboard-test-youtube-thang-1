@@ -25,7 +25,7 @@ export const customerFormSchema = z.object({
 
 export type CustomerFormValues = z.infer<typeof customerFormSchema>
 
-// Accept legacy records without status/priority. Ownership stays required.
+// Customer submissions are shared; legacy creator metadata is optional.
 export const customerSchema = z.object({
   id: z.string(),
   fullName: z.string(),
@@ -34,7 +34,7 @@ export const customerSchema = z.object({
   serviceName: z.string(),
   status: z.string().optional(),
   priority: z.string().optional(),
-  userId: z.string(),
+  userId: z.string().optional(),
   createdAt: z.string().optional(),
 })
 
