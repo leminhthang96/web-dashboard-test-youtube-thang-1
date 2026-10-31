@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { ArrowUp, BarChart3, CheckCircle2, Clock, ListTodo } from "lucide-react"
+import { onAuthStateChanged } from "firebase/auth"
+import { auth } from "@/lib/firebase/client"
 
 import {
   Card,
@@ -26,6 +28,13 @@ export default function TaskPage() {
   const [tasks, setTasks] = useState<Task[]>([])
   const [loading, setLoading] = useState(true)
   const [isSeedingTasks, setIsSeedingTasks] = useState(false)
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null)
+
+  useEffect(() => {
+    return onAuthStateChanged(auth, (user) => {
+      setCurrentUserId(user?.uid ?? null)
+    })
+  }, [])
 
   const refreshTasks = useCallback(async () => {
     const taskList = await getTasks()
@@ -55,8 +64,8 @@ export default function TaskPage() {
   )
 
   const handleUpdateTask = useCallback(async (task: Task) => {
-    await updateTask(task)
-    setTasks((prev) => prev.map((item) => (item.id === task.id ? task : item)))
+    const updated = await updateTask(task)
+    setTasks((prev) => prev.map((item) => (item.id === task.id ? updated : item)))
   }, [])
 
   const handleDeleteTask = useCallback(async (taskId: string) => {
@@ -71,8 +80,8 @@ export default function TaskPage() {
       title: `${task.title} (Copy)`,
     }
 
-    await createTask(duplicate)
-    setTasks((prev) => [duplicate, ...prev])
+    const created = await createTask(duplicate)
+    setTasks((prev) => [created, ...prev])
   }, [])
 
   const handleSeedTasks = useCallback(async () => {
@@ -90,11 +99,12 @@ export default function TaskPage() {
   const taskColumns = useMemo(
     () =>
       getTaskColumns({
+        currentUserId,
         onUpdateTask: handleUpdateTask,
         onDeleteTask: handleDeleteTask,
         onDuplicateTask: handleDuplicateTask,
       }),
-    [handleDeleteTask, handleDuplicateTask, handleUpdateTask]
+    [currentUserId, handleDeleteTask, handleDuplicateTask, handleUpdateTask]
   )
 
   const stats = getTaskStats(tasks)

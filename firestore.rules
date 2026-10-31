@@ -24,9 +24,16 @@ service cloud.firestore {
     }
 
     // ─── Tasks Collection ─────────────────────────────────────────
-    // Authenticated users can read/write tasks.
+    // Only the creator may edit/delete; creator cannot be reassigned.
     match /tasks/{taskId} {
-      allow read, write: if request.auth != null;
+      allow read: if request.auth != null;
+      allow create: if request.auth != null
+        && request.resource.data.createdBy == request.auth.uid;
+      allow update: if request.auth != null
+        && resource.data.createdBy == request.auth.uid
+        && request.resource.data.createdBy == resource.data.createdBy;
+      allow delete: if request.auth != null
+        && resource.data.createdBy == request.auth.uid;
     }
 
     // ─── Folders Collection ────────────────────────────────────────

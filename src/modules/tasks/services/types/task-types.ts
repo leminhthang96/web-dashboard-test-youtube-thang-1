@@ -1,13 +1,13 @@
 import { z } from "zod"
 
-// We're keeping a simple non-relational schema here.
-// IRL, you will have a schema for your data models.
+// Legacy tasks without a creator remain readable, but cannot be edited/deleted.
 export const taskSchema = z.object({
   id: z.string(),
   title: z.string(),
   status: z.string(),
   category: z.string(),
   priority: z.string(),
+  createdBy: z.string().optional(),
 })
 
 export type Task = z.infer<typeof taskSchema>

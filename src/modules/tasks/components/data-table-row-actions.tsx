@@ -3,6 +3,8 @@
 import * as React from "react"
 import type { Row } from "@tanstack/react-table"
 import { MoreHorizontal } from "lucide-react"
+import { toast } from "sonner"
+import { canManageTask } from "@/modules/tasks/services/task-permissions"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -42,6 +44,7 @@ import {
 
 interface DataTableRowActionsProps<TData> {
   row: Row<TData>
+  currentUserId?: string | null
   onUpdateTask?: (task: Task) => void | Promise<void>
   onDeleteTask?: (taskId: string) => void | Promise<void>
   onDuplicateTask?: (task: Task) => void | Promise<void>
@@ -49,6 +52,7 @@ interface DataTableRowActionsProps<TData> {
 
 export function DataTableRowActions<TData>({
   row,
+  currentUserId,
   onUpdateTask,
   onDeleteTask,
   onDuplicateTask,
@@ -58,20 +62,29 @@ export function DataTableRowActions<TData>({
   const [draft, setDraft] = React.useState<Task | null>(null)
   const [isSaving, setIsSaving] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
+  const canManage = parsed.success && canManageTask(parsed.data, currentUserId)
 
-  if (!parsed.success) {
+  React.useEffect(() => {
+    setEditOpen(false)
+    setDraft(null)
+    setError(null)
+  }, [canManage, currentUserId])
+
+  if (!parsed.success || !currentUserId) {
     return null
   }
 
   const task = parsed.data
 
   function openEditDialog() {
+    if (!canManage) return
     setDraft(task)
     setError(null)
     setEditOpen(true)
   }
 
   async function handleSaveEdit() {
+    if (!canManage) return
     if (!draft?.title.trim()) {
       setError("Title is required")
       return
@@ -91,6 +104,20 @@ export function DataTableRowActions<TData>({
     }
   }
 
+  async function handleDelete() {
+    if (!canManage || !onDeleteTask) return
+    if (!window.confirm(`Xóa công việc “${task.title}”?`)) return
+    try {
+      await onDeleteTask(task.id)
+    } catch (deleteError) {
+      toast.error(
+        deleteError instanceof Error
+          ? deleteError.message
+          : "Không thể xóa công việc."
+      )
+    }
+  }
+
   return (
     <>
       <DropdownMenu>
@@ -104,30 +131,36 @@ export function DataTableRowActions<TData>({
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-[160px]">
-          <DropdownMenuItem className="cursor-pointer" onClick={openEditDialog}>
-            Edit Task
-          </DropdownMenuItem>
+          {canManage && onUpdateTask ? (
+            <DropdownMenuItem className="cursor-pointer" onClick={openEditDialog}>
+              Edit Task
+            </DropdownMenuItem>
+          ) : null}
           <DropdownMenuItem
             className="cursor-pointer"
             onClick={() => onDuplicateTask?.(task)}
           >
             Duplicate
           </DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem
-            className="cursor-pointer"
-            variant="destructive"
-            onClick={() => onDeleteTask?.(task.id)}
-          >
-            Delete
-            <DropdownMenuShortcut className="text-destructive">
-              ⌘⌫
-            </DropdownMenuShortcut>
-          </DropdownMenuItem>
+          {canManage && onDeleteTask ? (
+            <>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                className="cursor-pointer"
+                variant="destructive"
+                onClick={() => void handleDelete()}
+              >
+                Delete
+                <DropdownMenuShortcut className="text-destructive">
+                  ⌘⌫
+                </DropdownMenuShortcut>
+              </DropdownMenuItem>
+            </>
+          ) : null}
         </DropdownMenuContent>
       </DropdownMenu>
 
-      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+      <Dialog open={editOpen && canManage} onOpenChange={setEditOpen}>
         <DialogContent className="sm:max-w-[525px]">
           <DialogHeader>
             <DialogTitle>Edit Task</DialogTitle>
@@ -237,7 +270,7 @@ export function DataTableRowActions<TData>({
             >
               Cancel
             </Button>
-            <Button onClick={handleSaveEdit} disabled={isSaving}>
+            <Button onClick={handleSaveEdit} disabled={isSaving || !canManage}>
               {isSaving ? "Saving..." : "Save changes"}
             </Button>
           </DialogFooter>
