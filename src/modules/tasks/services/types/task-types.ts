@@ -8,6 +8,7 @@ export const taskSchema = z.object({
   category: z.string(),
   priority: z.string(),
   createdBy: z.string().optional(),
+  isSeedData: z.boolean().optional(),
 })
 
 export type Task = z.infer<typeof taskSchema>

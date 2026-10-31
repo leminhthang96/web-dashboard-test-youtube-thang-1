@@ -3,7 +3,11 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { ArrowUp, BarChart3, CheckCircle2, Clock, ListTodo } from "lucide-react"
 import { onAuthStateChanged } from "firebase/auth"
+import { useSession } from "next-auth/react"
+import { toast } from "sonner"
 import { auth } from "@/lib/firebase/client"
+import { hasAdminAccess } from "@/lib/auth/permissions"
+import { isLegacySeedTask } from "@/modules/tasks/services/task-seed-data"
 
 import {
   Card,
@@ -17,6 +21,8 @@ import { DataTable } from "@/modules/tasks/components/data-table"
 import {
   createTask,
   deleteTask,
+  deleteSeedTasks,
+  deleteLegacySeedTasks,
   getTasks,
   getTaskStats,
   seedTasksWithClient,
@@ -25,9 +31,11 @@ import {
 import type { Task } from "@/modules/tasks/services/types/task-types"
 
 export default function TaskPage() {
+  const { data: session } = useSession()
   const [tasks, setTasks] = useState<Task[]>([])
   const [loading, setLoading] = useState(true)
   const [isSeedingTasks, setIsSeedingTasks] = useState(false)
+  const [isDeletingSeedTasks, setIsDeletingSeedTasks] = useState(false)
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
 
   useEffect(() => {
@@ -47,6 +55,7 @@ export default function TaskPage() {
         await refreshTasks()
       } catch (error) {
         console.error("Failed to load tasks:", error)
+        toast.error("Không tải được công việc. Vui lòng tải lại trang.")
       } finally {
         setLoading(false)
       }
@@ -89,12 +98,50 @@ export default function TaskPage() {
       setIsSeedingTasks(true)
       const seededTasks = await seedTasksWithClient()
       setTasks(seededTasks)
+      toast.success("Đã tạo dữ liệu mẫu thuộc tài khoản của bạn.")
     } catch (error) {
       console.error("Failed to seed tasks:", error)
+      toast.error(
+        error instanceof Error ? error.message : "Không thể tạo dữ liệu mẫu."
+      )
     } finally {
       setIsSeedingTasks(false)
     }
   }, [])
+
+  const seedTaskCount = tasks.filter(
+    (task) => task.isSeedData === true && task.createdBy === currentUserId
+  ).length
+  const legacySeedTaskCount = tasks.filter((task) =>
+    isLegacySeedTask(task.id, task)
+  ).length
+
+  const handleDeleteSeedTasks = async (legacy = false) => {
+    const count = legacy ? legacySeedTaskCount : seedTaskCount
+    const description = legacy
+      ? `${count} công việc mẫu cũ chưa có người tạo, còn nguyên nội dung mẫu`
+      : `${count} công việc mẫu do tài khoản của bạn tạo (kể cả mẫu đã chỉnh sửa)`
+    if (!window.confirm(`Xóa ${description}? Thao tác này không thể hoàn tác.`)) {
+      return
+    }
+    setIsDeletingSeedTasks(true)
+    try {
+      const deleted = await (legacy ? deleteLegacySeedTasks() : deleteSeedTasks())
+      toast.success(`Đã xóa ${deleted} công việc mẫu.`)
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Không thể xóa dữ liệu mẫu."
+      )
+    } finally {
+      // Also refresh after partial failure when deleting multiple batches.
+      try {
+        await refreshTasks()
+      } catch {
+        toast.error("Không tải lại được danh sách. Vui lòng tải lại trang.")
+      }
+      setIsDeletingSeedTasks(false)
+    }
+  }
 
   const taskColumns = useMemo(
     () =>
@@ -253,6 +300,17 @@ export default function TaskPage() {
               onAddTask={handleAddTask}
               onSeedTasks={handleSeedTasks}
               isSeedingTasks={isSeedingTasks}
+              seedTaskCount={seedTaskCount}
+              legacySeedTaskCount={legacySeedTaskCount}
+              isDeletingSeedTasks={isDeletingSeedTasks}
+              onDeleteSeedTasks={
+                currentUserId ? () => handleDeleteSeedTasks() : undefined
+              }
+              onDeleteLegacySeedTasks={
+                hasAdminAccess(session?.user)
+                  ? () => handleDeleteSeedTasks(true)
+                  : undefined
+              }
             />
           </CardContent>
         </Card>

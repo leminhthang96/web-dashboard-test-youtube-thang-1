@@ -1,7 +1,7 @@
 "use client"
 
 import type { Table } from "@tanstack/react-table"
-import { Database, RefreshCcw } from "lucide-react"
+import { Database, RefreshCcw, Trash2 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -27,6 +27,11 @@ interface DataTableToolbarProps<TData> {
   onAddTask?: (task: Task) => void | Promise<void>
   onSeedTasks?: () => void | Promise<void>
   isSeedingTasks?: boolean
+  seedTaskCount?: number
+  legacySeedTaskCount?: number
+  isDeletingSeedTasks?: boolean
+  onDeleteSeedTasks?: () => void | Promise<void>
+  onDeleteLegacySeedTasks?: () => void | Promise<void>
 }
 
 export function DataTableToolbar<TData>({
@@ -34,6 +39,11 @@ export function DataTableToolbar<TData>({
   onAddTask,
   onSeedTasks,
   isSeedingTasks,
+  seedTaskCount = 0,
+  legacySeedTaskCount = 0,
+  isDeletingSeedTasks,
+  onDeleteSeedTasks,
+  onDeleteLegacySeedTasks,
 }: DataTableToolbarProps<TData>) {
   const isFiltered = table.getState().columnFilters.length > 0
 
@@ -164,7 +174,7 @@ export function DataTableToolbar<TData>({
       </div>
 
       {/* Search and Actions Section */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-1 items-center space-x-2">
           <Input
             placeholder="Search Task"
@@ -184,19 +194,46 @@ export function DataTableToolbar<TData>({
             <span className="hidden lg:block">Reset Filters</span>
           </Button>
         </div>
-        <div className="flex items-center space-x-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Button
             variant="outline"
             size="sm"
             className="cursor-pointer"
             onClick={onSeedTasks}
-            disabled={!onSeedTasks || isSeedingTasks}
+            disabled={!onSeedTasks || isSeedingTasks || isDeletingSeedTasks}
           >
             <Database className="h-4 w-4" />
             <span className="hidden lg:block">
               {isSeedingTasks ? "Seeding..." : "Seed Data"}
             </span>
           </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onDeleteSeedTasks}
+            disabled={
+              !onDeleteSeedTasks ||
+              !seedTaskCount ||
+              isSeedingTasks ||
+              isDeletingSeedTasks
+            }
+            title="Chỉ xóa dữ liệu mẫu do bạn tạo"
+          >
+            <Trash2 className="h-4 w-4" />
+            Xóa mẫu của tôi ({seedTaskCount})
+          </Button>
+          {onDeleteLegacySeedTasks && legacySeedTaskCount > 0 && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onDeleteLegacySeedTasks}
+              disabled={isSeedingTasks || isDeletingSeedTasks}
+              title="Chỉ admin: xóa mẫu cũ chưa có người tạo và chưa chỉnh sửa"
+            >
+              <Trash2 className="h-4 w-4" />
+              Xóa mẫu cũ ({legacySeedTaskCount})
+            </Button>
+          )}
           <DataTableViewOptions table={table} />
           <AddTaskModal onAddTask={onAddTask} />
         </div>

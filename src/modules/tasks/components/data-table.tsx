@@ -35,6 +35,11 @@ interface DataTableProps<TData, TValue> {
   onAddTask?: (task: Task) => void | Promise<void>
   onSeedTasks?: () => void | Promise<void>
   isSeedingTasks?: boolean
+  seedTaskCount?: number
+  legacySeedTaskCount?: number
+  isDeletingSeedTasks?: boolean
+  onDeleteSeedTasks?: () => void | Promise<void>
+  onDeleteLegacySeedTasks?: () => void | Promise<void>
 }
 
 export function DataTable<TData, TValue>({
@@ -43,6 +48,11 @@ export function DataTable<TData, TValue>({
   onAddTask,
   onSeedTasks,
   isSeedingTasks,
+  seedTaskCount,
+  legacySeedTaskCount,
+  isDeletingSeedTasks,
+  onDeleteSeedTasks,
+  onDeleteLegacySeedTasks,
 }: DataTableProps<TData, TValue>) {
   const [rowSelection, setRowSelection] = React.useState({})
   const [columnVisibility, setColumnVisibility] =
@@ -81,6 +91,11 @@ export function DataTable<TData, TValue>({
         onAddTask={onAddTask}
         onSeedTasks={onSeedTasks}
         isSeedingTasks={isSeedingTasks}
+        seedTaskCount={seedTaskCount}
+        legacySeedTaskCount={legacySeedTaskCount}
+        isDeletingSeedTasks={isDeletingSeedTasks}
+        onDeleteSeedTasks={onDeleteSeedTasks}
+        onDeleteLegacySeedTasks={onDeleteLegacySeedTasks}
       />
       <div className="rounded-md border">
         <Table>
