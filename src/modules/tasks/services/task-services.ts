@@ -9,8 +9,8 @@ import {
 } from "firebase/firestore"
 
 import { auth, db } from "@/lib/firebase/client"
-import { taskMockData } from "./task-mock-data"
-import { canManageTask } from "./task-permissions"
+import { taskSeedData } from "./task-seed-data"
+import { canManageTask, canReadTask } from "./task-permissions"
 import { taskSchema, type Task } from "./types/task-types"
 
 const TASKS_COLLECTION = "tasks"
@@ -30,10 +30,21 @@ function assertOwner(task: { createdBy?: string }, uid: string): void {
 }
 
 export async function getTasks(): Promise<Task[]> {
-  await getCurrentUserId()
-  const snapshot = await getDocs(collection(db, TASKS_COLLECTION))
-
-  const result = snapshot.docs.map((document) => {
+  const uid = await getCurrentUserId()
+  const tasks = collection(db, TASKS_COLLECTION)
+  const snapshots = await Promise.all([
+    getDocs(query(tasks, where("createdBy", "==", uid))),
+    getDocs(query(tasks, where("reporter", "==", uid))),
+  ])
+  if (auth.currentUser?.uid !== uid) {
+    throw new Error("Tài khoản đã thay đổi. Vui lòng tải lại danh sách.")
+  }
+  const documents = new Map(
+    snapshots.flatMap((snapshot) =>
+      snapshot.docs.map((document) => [document.id, document] as const)
+    )
+  )
+  const result = [...documents.values()].map((document) => {
     const data = document.data() as Task
 
     return {
@@ -42,24 +53,30 @@ export async function getTasks(): Promise<Task[]> {
     }
   })
 
-  return JSON.parse(JSON.stringify(result))
+  // Keep the current user's actionable tasks ahead of legacy unowned fixtures.
+  result.sort(
+    (a, b) => Number(b.createdBy === uid) - Number(a.createdBy === uid)
+  )
+  return JSON.parse(JSON.stringify(result.filter((task) => canReadTask(task, uid))))
 }
 
 export async function seedTasksWithClient(): Promise<Task[]> {
   const createdBy = await getCurrentUserId()
   const batch = writeBatch(db)
 
-  taskMockData.forEach((task) => {
+  taskSeedData.forEach((task) => {
     // Fresh IDs avoid overwriting or claiming another user's sample tasks.
     const reference = doc(collection(db, TASKS_COLLECTION))
     batch.set(reference, {
       ...task,
       id: reference.id,
       createdBy,
+      reporter: createdBy,
       isSeedData: true,
     })
   })
 
+  assertOwner({ createdBy }, createdBy)
   await batch.commit()
   return getTasks()
 }
@@ -101,7 +118,12 @@ export async function deleteLegacySeedTasks(): Promise<number> {
 
 export async function createTask(task: Task): Promise<Task> {
   const createdBy = await getCurrentUserId()
-  const payload = taskSchema.parse({ ...task, createdBy, isSeedData: false })
+  const payload = taskSchema.parse({
+    ...task,
+    createdBy,
+    reporter: task.reporter ?? "",
+    isSeedData: false,
+  })
   const reference = doc(db, TASKS_COLLECTION, payload.id)
   await runTransaction(db, async (transaction) => {
     const existing = await transaction.get(reference)
@@ -127,6 +149,7 @@ export async function updateTask(task: Task): Promise<Task> {
     assertOwner(existing.data(), uid)
     transaction.update(reference, values)
     return {
+      ...existing.data(),
       ...values,
       id: reference.id,
       createdBy: uid,

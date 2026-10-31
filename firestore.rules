@@ -26,12 +26,28 @@ service cloud.firestore {
     // ─── Tasks Collection ─────────────────────────────────────────
     // Only the creator may edit/delete; creator cannot be reassigned.
     match /tasks/{taskId} {
-      allow read: if request.auth != null;
+      function canReadTask() {
+        return request.auth != null
+          && (resource.data.get('createdBy', '') == request.auth.uid
+            || resource.data.get('reporter', '') == request.auth.uid);
+      }
+      function validReporter() {
+        return !('reporter' in request.resource.data)
+          || (request.resource.data.reporter is string
+            && request.resource.data.reporter.size() <= 128);
+      }
+      allow list: if canReadTask();
+      // Create transactions must be able to check that a new ID is unused.
+      allow get: if request.auth != null
+        && (!exists(/databases/$(database)/documents/tasks/$(taskId))
+          || canReadTask());
       allow create: if request.auth != null
-        && request.resource.data.createdBy == request.auth.uid;
+        && request.resource.data.createdBy == request.auth.uid
+        && validReporter();
       allow update: if request.auth != null
         && resource.data.createdBy == request.auth.uid
-        && request.resource.data.createdBy == resource.data.createdBy;
+        && request.resource.data.createdBy == resource.data.createdBy
+        && validReporter();
       allow delete: if request.auth != null
         && resource.data.createdBy == request.auth.uid;
     }

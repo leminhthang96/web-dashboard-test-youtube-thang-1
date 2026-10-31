@@ -189,6 +189,28 @@ export function DataTableRowActions<TData>({
                 />
               </div>
 
+              <div className="space-y-2">
+                <Label htmlFor={`task-reporter-${task.id}`}>
+                  Người nhận report (UID)
+                </Label>
+                <Input
+                  id={`task-reporter-${task.id}`}
+                  value={draft.reporter ?? ""}
+                  onChange={(event) =>
+                    setDraft((current) =>
+                      current
+                        ? { ...current, reporter: event.target.value }
+                        : current
+                    )
+                  }
+                  maxLength={128}
+                  placeholder="Nhập Firebase Auth UID của người nhận"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Chỉ người tạo được đổi người nhận. Xóa UID để bỏ quyền xem.
+                </p>
+              </div>
+
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div className="space-y-2">
                   <Label>Status</Label>

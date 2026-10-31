@@ -7,7 +7,11 @@ import { useSession } from "next-auth/react"
 import { toast } from "sonner"
 import { auth } from "@/lib/firebase/client"
 import { hasAdminAccess } from "@/lib/auth/permissions"
-import { isLegacySeedTask } from "@/modules/tasks/services/task-seed-data"
+import { canReadTask } from "@/modules/tasks/services/task-permissions"
+import {
+  isLegacySeedTask,
+  TASK_SEED_COUNT,
+} from "@/modules/tasks/services/task-seed-data"
 
 import {
   Card,
@@ -36,10 +40,12 @@ export default function TaskPage() {
   const [loading, setLoading] = useState(true)
   const [isSeedingTasks, setIsSeedingTasks] = useState(false)
   const [isDeletingSeedTasks, setIsDeletingSeedTasks] = useState(false)
+  const [seedError, setSeedError] = useState<string | null>(null)
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
 
   useEffect(() => {
     return onAuthStateChanged(auth, (user) => {
+      setTasks([])
       setCurrentUserId(user?.uid ?? null)
     })
   }, [])
@@ -50,19 +56,35 @@ export default function TaskPage() {
   }, [])
 
   useEffect(() => {
+    let active = true
+    if (!currentUserId) {
+      setTasks([])
+      setLoading(false)
+      return
+    }
+    setLoading(true)
     const loadTasks = async () => {
       try {
-        await refreshTasks()
+        const taskList = await getTasks()
+        if (active && auth.currentUser?.uid === currentUserId) {
+          setTasks(taskList)
+        }
       } catch (error) {
-        console.error("Failed to load tasks:", error)
-        toast.error("Không tải được công việc. Vui lòng tải lại trang.")
+        if (active) {
+          setTasks([])
+          console.error("Failed to load tasks:", error)
+          toast.error("Không tải được công việc. Vui lòng tải lại trang.")
+        }
       } finally {
-        setLoading(false)
+        if (active) setLoading(false)
       }
     }
 
     loadTasks()
-  }, [refreshTasks])
+    return () => {
+      active = false
+    }
+  }, [currentUserId])
 
   const handleAddTask = useCallback(
     async (newTask: Task) => {
@@ -96,23 +118,26 @@ export default function TaskPage() {
   const handleSeedTasks = useCallback(async () => {
     try {
       setIsSeedingTasks(true)
+      setSeedError(null)
       const seededTasks = await seedTasksWithClient()
       setTasks(seededTasks)
-      toast.success("Đã tạo dữ liệu mẫu thuộc tài khoản của bạn.")
+      toast.success(`Đã tạo ${TASK_SEED_COUNT} mẫu thuộc tài khoản của bạn.`)
     } catch (error) {
       console.error("Failed to seed tasks:", error)
-      toast.error(
+      const message =
         error instanceof Error ? error.message : "Không thể tạo dữ liệu mẫu."
-      )
+      setSeedError(message)
+      toast.error(message)
     } finally {
       setIsSeedingTasks(false)
     }
   }, [])
 
-  const seedTaskCount = tasks.filter(
+  const visibleTasks = tasks.filter((task) => canReadTask(task, currentUserId))
+  const seedTaskCount = visibleTasks.filter(
     (task) => task.isSeedData === true && task.createdBy === currentUserId
   ).length
-  const legacySeedTaskCount = tasks.filter((task) =>
+  const legacySeedTaskCount = visibleTasks.filter((task) =>
     isLegacySeedTask(task.id, task)
   ).length
 
@@ -125,13 +150,15 @@ export default function TaskPage() {
       return
     }
     setIsDeletingSeedTasks(true)
+    setSeedError(null)
     try {
       const deleted = await (legacy ? deleteLegacySeedTasks() : deleteSeedTasks())
       toast.success(`Đã xóa ${deleted} công việc mẫu.`)
     } catch (error) {
-      toast.error(
+      const message =
         error instanceof Error ? error.message : "Không thể xóa dữ liệu mẫu."
-      )
+      setSeedError(message)
+      toast.error(message)
     } finally {
       // Also refresh after partial failure when deleting multiple batches.
       try {
@@ -154,7 +181,7 @@ export default function TaskPage() {
     [currentUserId, handleDeleteTask, handleDuplicateTask, handleUpdateTask]
   )
 
-  const stats = getTaskStats(tasks)
+  const stats = getTaskStats(visibleTasks)
   const getPercent = (value: number) =>
     stats.total > 0 ? Math.round((value / stats.total) * 100) : 0
 
@@ -172,8 +199,23 @@ export default function TaskPage() {
       <div className="flex flex-col gap-2 px-4 md:px-6">
         <h1 className="text-2xl font-bold tracking-tight">Tasks</h1>
         <p className="text-muted-foreground">
-          A powerful task and issue tracker built with Tanstack Table.
+          Chỉ hiển thị công việc bạn tạo hoặc được chỉ định nhận report.
         </p>
+        <p className="text-sm text-muted-foreground">
+          UID đang đăng nhập:{" "}
+          <code>{currentUserId ?? "Chưa đăng nhập Firebase"}</code>
+        </p>
+        {legacySeedTaskCount > 0 && (
+          <p className="text-sm text-muted-foreground">
+            Có {legacySeedTaskCount} mẫu cũ chưa có người tạo nên chỉ có Duplicate.
+            Mẫu mới sẽ lưu UID của bạn và cho phép Edit/Delete.
+          </p>
+        )}
+        {seedError && (
+          <p role="alert" className="text-sm text-destructive">
+            {seedError}
+          </p>
+        )}
       </div>
 
       {/* Mobile view placeholder - shows message instead of images */}
@@ -295,10 +337,10 @@ export default function TaskPage() {
           </CardHeader>
           <CardContent>
             <DataTable
-              data={tasks}
+              data={visibleTasks}
               columns={taskColumns}
               onAddTask={handleAddTask}
-              onSeedTasks={handleSeedTasks}
+              onSeedTasks={currentUserId ? handleSeedTasks : undefined}
               isSeedingTasks={isSeedingTasks}
               seedTaskCount={seedTaskCount}
               legacySeedTaskCount={legacySeedTaskCount}

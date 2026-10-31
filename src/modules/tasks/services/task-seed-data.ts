@@ -1,5 +1,8 @@
 import { taskMockData } from "./task-mock-data"
 
+export const TASK_SEED_COUNT = 10
+export const taskSeedData = taskMockData.slice(0, TASK_SEED_COUNT)
+
 const sampleFields = ["id", "title", "status", "category", "priority"] as const
 const samples = new Map(taskMockData.map((task) => [task.id, task]))
 

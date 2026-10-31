@@ -169,6 +169,50 @@ export function getTaskColumns({
       },
     },
     {
+      accessorKey: "createdBy",
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="Người tạo (UID)" />
+      ),
+      cell: ({ row }) => {
+        const uid = row.original.createdBy
+        return (
+          <div className="w-[230px] space-y-1 whitespace-normal">
+            {uid ? (
+              <>
+                <code className="block break-all text-xs select-text">{uid}</code>
+                {uid === currentUserId && <Badge variant="outline">Bạn</Badge>}
+              </>
+            ) : (
+              <span className="text-xs text-muted-foreground">
+                Chưa có UID — không có quyền sửa/xóa
+              </span>
+            )}
+          </div>
+        )
+      },
+    },
+    {
+      accessorKey: "reporter",
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="Người nhận report (UID)" />
+      ),
+      cell: ({ row }) => {
+        const uid = row.original.reporter
+        return (
+          <div className="w-[230px] space-y-1 whitespace-normal">
+            {uid ? (
+              <>
+                <code className="block break-all text-xs select-text">{uid}</code>
+                {uid === currentUserId && <Badge variant="outline">Bạn</Badge>}
+              </>
+            ) : (
+              <span className="text-xs text-muted-foreground">Chưa chỉ định</span>
+            )}
+          </div>
+        )
+      },
+    },
+    {
       id: "actions",
       cell: ({ row }) => (
         <DataTableRowActions

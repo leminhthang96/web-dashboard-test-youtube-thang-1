@@ -21,6 +21,7 @@ import {
   statuses,
 } from "@/modules/tasks/services/task-mock-data"
 import type { Task } from "@/modules/tasks/services/types/task-types"
+import { TASK_SEED_COUNT } from "@/modules/tasks/services/task-seed-data"
 
 interface DataTableToolbarProps<TData> {
   table: Table<TData>
@@ -204,7 +205,7 @@ export function DataTableToolbar<TData>({
           >
             <Database className="h-4 w-4" />
             <span className="hidden lg:block">
-              {isSeedingTasks ? "Seeding..." : "Seed Data"}
+              {isSeedingTasks ? "Đang tạo..." : `Tạo ${TASK_SEED_COUNT} mẫu`}
             </span>
           </Button>
           <Button

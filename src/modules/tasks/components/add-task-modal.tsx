@@ -29,7 +29,10 @@ import {
   statuses,
   categories,
 } from "@/modules/tasks/services/task-mock-data"
-import type { Task } from "@/modules/tasks/services/types/task-types"
+import {
+  taskReporterSchema,
+  type Task,
+} from "@/modules/tasks/services/types/task-types"
 
 // Extended task schema for the form
 const taskFormSchema = z.object({
@@ -39,6 +42,7 @@ const taskFormSchema = z.object({
   status: z.string(),
   category: z.string(),
   priority: z.string(),
+  reporter: taskReporterSchema,
 })
 
 type TaskFormData = z.infer<typeof taskFormSchema>
@@ -57,6 +61,7 @@ export function AddTaskModal({ onAddTask, trigger }: AddTaskModalProps) {
     status: "todo",
     category: "feature",
     priority: "normal",
+    reporter: "",
   })
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -84,6 +89,7 @@ export function AddTaskModal({ onAddTask, trigger }: AddTaskModalProps) {
         status: validatedData.status,
         category: validatedData.category,
         priority: validatedData.priority,
+        reporter: validatedData.reporter,
       }
 
       await onAddTask?.(newTask)
@@ -96,6 +102,7 @@ export function AddTaskModal({ onAddTask, trigger }: AddTaskModalProps) {
         status: "todo",
         category: "feature",
         priority: "normal",
+        reporter: "",
       })
       setErrors({})
       setOpen(false)
@@ -127,6 +134,7 @@ export function AddTaskModal({ onAddTask, trigger }: AddTaskModalProps) {
       status: "todo",
       category: "feature",
       priority: "normal",
+      reporter: "",
     })
     setErrors({})
     setOpen(false)
@@ -174,6 +182,28 @@ export function AddTaskModal({ onAddTask, trigger }: AddTaskModalProps) {
             />
             {errors.title && (
               <p className="text-sm text-red-500">{errors.title}</p>
+            )}
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="task-reporter">Người nhận report (UID)</Label>
+            <Input
+              id="task-reporter"
+              value={formData.reporter}
+              onChange={(event) =>
+                setFormData((current) => ({
+                  ...current,
+                  reporter: event.target.value,
+                }))
+              }
+              placeholder="Nhập Firebase Auth UID của người nhận"
+              maxLength={128}
+            />
+            <p className="text-xs text-muted-foreground">
+              Người nhận được xem task. Để trống nếu chỉ bạn cần xem.
+            </p>
+            {errors.reporter && (
+              <p className="text-sm text-destructive">{errors.reporter}</p>
             )}
           </div>
 
