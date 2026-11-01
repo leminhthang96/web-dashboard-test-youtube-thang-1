@@ -59,7 +59,12 @@ export function getTaskColumns({
         <DataTableColumnHeader column={column} title="Task" />
       ),
       cell: ({ row }) => (
-        <div className="w-[90px] font-medium">{row.getValue("id")}</div>
+        <div
+          className="w-[160px] truncate rounded-md bg-muted/50 px-2 py-1 font-mono text-xs text-muted-foreground select-text"
+          title={row.original.id}
+        >
+          {row.original.id}
+        </div>
       ),
       enableHiding: false,
     },
@@ -70,10 +75,8 @@ export function getTaskColumns({
       ),
       cell: ({ row }) => {
         return (
-          <div className="flex space-x-2">
-            <span className="max-w-[500px] truncate font-medium">
-              {row.getValue("title")}
-            </span>
+          <div className="w-[280px] whitespace-normal font-medium leading-relaxed [overflow-wrap:anywhere] xl:w-[360px]">
+            {row.getValue("title")}
           </div>
         )
       },
