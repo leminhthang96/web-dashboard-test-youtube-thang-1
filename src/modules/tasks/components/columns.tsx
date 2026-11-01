@@ -14,6 +14,7 @@ import {
 import type { Task } from "@/modules/tasks/services/types/task-types"
 import { DataTableColumnHeader } from "./data-table-column-header"
 import { DataTableRowActions } from "./data-table-row-actions"
+import { CopyIdentifier } from "./copy-identifier"
 
 interface TaskColumnActions {
   currentUserId?: string | null
@@ -56,27 +57,25 @@ export function getTaskColumns({
     {
       accessorKey: "id",
       header: ({ column }) => (
-        <DataTableColumnHeader column={column} title="Task" />
+        <DataTableColumnHeader column={column} title="Mã task" />
       ),
       cell: ({ row }) => (
-        <div
-          className="w-[160px] truncate rounded-md bg-muted/50 px-2 py-1 font-mono text-xs text-muted-foreground select-text"
-          title={row.original.id}
-        >
-          {row.original.id}
-        </div>
+        <CopyIdentifier value={row.original.id} label="Mã task" />
       ),
-      enableHiding: false,
+      enableHiding: true,
     },
     {
       accessorKey: "title",
       header: ({ column }) => (
-        <DataTableColumnHeader column={column} title="Title" />
+        <DataTableColumnHeader column={column} title="Công việc" />
       ),
       cell: ({ row }) => {
         return (
-          <div className="w-[280px] whitespace-normal font-medium leading-relaxed [overflow-wrap:anywhere] xl:w-[360px]">
-            {row.getValue("title")}
+          <div className="w-[280px] space-y-1 whitespace-normal xl:w-[380px]">
+            <p className="font-medium leading-relaxed text-foreground [overflow-wrap:anywhere]">
+              {row.getValue("title")}
+            </p>
+            <CopyIdentifier value={row.original.id} label="Mã task" />
           </div>
         )
       },
@@ -84,7 +83,7 @@ export function getTaskColumns({
     {
       accessorKey: "category",
       header: ({ column }) => (
-        <DataTableColumnHeader column={column} title="Category" />
+        <DataTableColumnHeader column={column} title="Danh mục" />
       ),
       cell: ({ row }) => {
         const category = categories.find(
@@ -96,7 +95,7 @@ export function getTaskColumns({
         }
 
         return (
-          <div className="flex w-[120px] items-center">
+          <div className="flex min-w-[90px] items-center">
             <Badge variant="outline">{category.label}</Badge>
           </div>
         )
@@ -108,7 +107,7 @@ export function getTaskColumns({
     {
       accessorKey: "status",
       header: ({ column }) => (
-        <DataTableColumnHeader column={column} title="Status" />
+        <DataTableColumnHeader column={column} title="Trạng thái" />
       ),
       cell: ({ row }) => {
         const status = statuses.find(
@@ -135,7 +134,7 @@ export function getTaskColumns({
     {
       accessorKey: "priority",
       header: ({ column }) => (
-        <DataTableColumnHeader column={column} title="Priority" />
+        <DataTableColumnHeader column={column} title="Ưu tiên" />
       ),
       cell: ({ row }) => {
         const priority = priorities.find(
@@ -174,20 +173,27 @@ export function getTaskColumns({
     {
       accessorKey: "createdBy",
       header: ({ column }) => (
-        <DataTableColumnHeader column={column} title="Người tạo (UID)" />
+        <DataTableColumnHeader column={column} title="Người tạo" />
       ),
       cell: ({ row }) => {
         const uid = row.original.createdBy
         return (
-          <div className="w-[230px] space-y-1 whitespace-normal">
+          <div className="w-[150px] space-y-1 whitespace-normal">
             {uid ? (
               <>
-                <code className="block break-all text-xs select-text">{uid}</code>
-                {uid === currentUserId && <Badge variant="outline">Bạn</Badge>}
+                <span
+                  className={cn(
+                    "block text-sm",
+                    uid === currentUserId && "font-medium text-primary"
+                  )}
+                >
+                  {uid === currentUserId ? "Bạn" : "Người dùng"}
+                </span>
+                <CopyIdentifier value={uid} label="UID người tạo" />
               </>
             ) : (
               <span className="text-xs text-muted-foreground">
-                Chưa có UID — không có quyền sửa/xóa
+                Chưa có người tạo
               </span>
             )}
           </div>
@@ -197,16 +203,23 @@ export function getTaskColumns({
     {
       accessorKey: "reporter",
       header: ({ column }) => (
-        <DataTableColumnHeader column={column} title="Người nhận report (UID)" />
+        <DataTableColumnHeader column={column} title="Người nhận report" />
       ),
       cell: ({ row }) => {
         const uid = row.original.reporter
         return (
-          <div className="w-[230px] space-y-1 whitespace-normal">
+          <div className="w-[150px] space-y-1 whitespace-normal">
             {uid ? (
               <>
-                <code className="block break-all text-xs select-text">{uid}</code>
-                {uid === currentUserId && <Badge variant="outline">Bạn</Badge>}
+                <span
+                  className={cn(
+                    "block text-sm",
+                    uid === currentUserId && "font-medium text-primary"
+                  )}
+                >
+                  {uid === currentUserId ? "Bạn" : "Người dùng"}
+                </span>
+                <CopyIdentifier value={uid} label="UID người nhận report" />
               </>
             ) : (
               <span className="text-xs text-muted-foreground">Chưa chỉ định</span>
