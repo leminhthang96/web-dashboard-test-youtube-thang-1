@@ -1,4 +1,5 @@
 import type { NextAuthConfig } from "next-auth"
+import { getHomePage } from "@/lib/auth/permissions"
 
 export const authConfig = {
   pages: {
@@ -15,7 +16,7 @@ export const authConfig = {
 
       if (isAuthPage) {
         if (isLoggedIn) {
-          return Response.redirect(new URL("/dashboard", nextUrl))
+          return Response.redirect(new URL(getHomePage(auth?.user), nextUrl))
         }
         return true
       }

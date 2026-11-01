@@ -1,44 +1,27 @@
 [
   {
     "id": "role-admin",
-    "name": "Admin",
-    "description": "Quản trị viên hệ thống - Toàn quyền",
-    "createdAt": "2024-01-01T00:00:00Z",
-    "updatedAt": "2024-01-01T00:00:00Z"
+    "name": "Administrators",
+    "description": "Toàn bộ menu và quản trị hệ thống"
   },
   {
-    "id": "role-author",
-    "name": "Author",
-    "description": "Tác giả - Có thể tạo nội dung",
-    "createdAt": "2024-01-01T00:00:00Z",
-    "updatedAt": "2024-01-01T00:00:00Z"
+    "id": "role-directors",
+    "name": "Directors",
+    "description": "Dashboard 1, Dashboard 2, Dashboard 3 và ISO Documents"
   },
   {
-    "id": "role-editor",
-    "name": "Editor",
-    "description": "Biên tập viên - Có thể chỉnh sửa nội dung",
-    "createdAt": "2024-01-01T00:00:00Z",
-    "updatedAt": "2024-01-01T00:00:00Z"
+    "id": "role-accounting",
+    "name": "Accounting",
+    "description": "Dashboard 3 và ISO Documents"
   },
   {
-    "id": "role-maintainer",
-    "name": "Maintainer",
-    "description": "Người vận hành - Quản lý kỹ thuật",
-    "createdAt": "2024-01-01T00:00:00Z",
-    "updatedAt": "2024-01-01T00:00:00Z"
+    "id": "role-staffs",
+    "name": "Staffs",
+    "description": "ISO Documents"
   },
   {
-    "id": "role-document-manager",
-    "name": "Document Manager",
-    "description": "Quản lý tài liệu - Có thể tạo, chỉnh sửa và xóa tài liệu",
-    "createdAt": "2024-01-01T00:00:00Z",
-    "updatedAt": "2024-01-01T00:00:00Z"
-  },
-  {
-    "id": "role-subscriber",
-    "name": "Subscriber",
-    "description": "Người đăng ký - Quyền xem cơ bản",
-    "createdAt": "2024-01-01T00:00:00Z",
-    "updatedAt": "2024-01-01T00:00:00Z"
+    "id": "role-customers",
+    "name": "Customers",
+    "description": "Chat"
   }
 ]

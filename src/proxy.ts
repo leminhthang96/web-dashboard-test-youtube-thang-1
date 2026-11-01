@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
 import { auth } from "./auth"
-import { hasAdminAccess } from "./lib/auth/permissions"
+import { canAccessPage, getHomePage } from "./lib/auth/permissions"
 
 export async function proxy(request: NextRequest) {
   const isApiRoute = request.nextUrl.pathname.startsWith("/api/")
@@ -21,7 +21,9 @@ export async function proxy(request: NextRequest) {
 
   if (isAuthPage) {
     if (isLoggedIn) {
-      return NextResponse.redirect(new URL("/dashboard", request.url))
+      return NextResponse.redirect(
+        new URL(getHomePage(session?.user), request.url)
+      )
     }
     return NextResponse.next()
   }
@@ -31,10 +33,17 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(new URL("/sign-in", request.url))
   }
 
-  if (
-    request.nextUrl.pathname.startsWith("/admin") &&
-    !hasAdminAccess(session.user)
-  ) {
+  const path = request.nextUrl.pathname
+  if (path === "/") {
+    return NextResponse.redirect(
+      new URL(getHomePage(session.user), request.url)
+    )
+  }
+  // Account settings and error pages remain available to signed-in users.
+  const isUtilityPage =
+    path.startsWith("/errors/") || path.startsWith("/settings/")
+  const target = path === "/customer" ? "/customers" : path
+  if (!isUtilityPage && !canAccessPage(session.user, target)) {
     return NextResponse.redirect(new URL("/errors/forbidden", request.url))
   }
 

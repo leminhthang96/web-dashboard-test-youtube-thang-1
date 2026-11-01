@@ -1,9 +1,6 @@
 import { getAdminDb } from "@/lib/firebase/admin"
 
-import {
-  ADMIN_ROLE_ID,
-  isAdminIdentifier,
-} from "@/lib/auth/permissions"
+import { ADMIN_ROLE_ID, isAdminIdentifier } from "@/lib/auth/permissions"
 
 type UserAuthorization = {
   roles: string[]
@@ -13,28 +10,24 @@ type UserAuthorization = {
 export async function getUserAuthorization(
   uid: string,
   email?: string | null,
-  username?: string | null
+  _username?: string | null
 ): Promise<UserAuthorization> {
-  if (isAdminIdentifier(email) || isAdminIdentifier(username)) {
+  if (isAdminIdentifier(email)) {
     return { roles: [ADMIN_ROLE_ID], isAdmin: true }
   }
 
   try {
     const db = getAdminDb()
-    const [profileSnapshot, assignmentsSnapshot] = await Promise.all([
-      db.collection("users").doc(uid).get(),
-      db.collection("users_roles").where("uid", "==", uid).get(),
-    ])
-
-    const profile = profileSnapshot.data()
+    const assignmentsSnapshot = await db
+      .collection("users_roles")
+      .where("uid", "==", uid)
+      .get()
     const roles = assignmentsSnapshot.docs
       .map((document) => document.data().roleId)
       .filter((roleId): roleId is string => typeof roleId === "string")
 
-    const hasAdminIdentifier = [profile?.email, profile?.username, profile?.name]
-      .some((value) => typeof value === "string" && isAdminIdentifier(value))
-    const isAdmin =
-      hasAdminIdentifier || roles.includes(ADMIN_ROLE_ID)
+    // Names and editable profile fields must never grant administrator access.
+    const isAdmin = roles.includes(ADMIN_ROLE_ID)
 
     return { roles, isAdmin }
   } catch (error) {

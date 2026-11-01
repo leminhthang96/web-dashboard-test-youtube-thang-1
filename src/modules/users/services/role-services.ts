@@ -1,68 +1,36 @@
-import {
-  collection,
-  deleteDoc,
-  doc,
-  getDocs,
-  serverTimestamp,
-  setDoc,
-  writeBatch,
-} from "firebase/firestore"
-
-import { db } from "@/lib/firebase/client"
-import { getFirestoreCollection } from "@/lib/firebase/firestore-query"
-
-import { roleMockData } from "./role-mock-data"
 import type { Role } from "./types/user-types"
-
-const ROLES_COLLECTION = "roles"
+import { rbacRequest } from "./rbac-api"
 
 export async function getRoles(): Promise<Role[]> {
-  return getFirestoreCollection<Role>(ROLES_COLLECTION, roleMockData)
+  return rbacRequest<Role[]>("/api/admin/roles")
 }
-
 export async function getRole(roleId: string): Promise<Role | null> {
-  const snap = await getDocs(collection(db, ROLES_COLLECTION))
-  const found = snap.docs.find((d) => d.id === roleId)
-  return found ? (found.data() as Role) : null
+  return (await getRoles()).find((role) => role.id === roleId) ?? null
 }
-
 export async function createRole(role: Role): Promise<Role> {
-  await setDoc(doc(db, ROLES_COLLECTION, role.id), {
-    ...role,
-    createdAt: role.createdAt ?? new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
+  return rbacRequest<Role>("/api/admin/roles", {
+    method: "POST",
+    body: JSON.stringify({ role }),
   })
-  return role
 }
-
 export async function updateRole(role: Role): Promise<Role> {
-  await setDoc(
-    doc(db, ROLES_COLLECTION, role.id),
-    { ...role, updatedAt: new Date().toISOString() },
-    { merge: true }
-  )
-  return role
-}
-
-export async function deleteRole(roleId: string): Promise<void> {
-  await deleteDoc(doc(db, ROLES_COLLECTION, roleId))
-}
-
-export async function seedRolesWithClient(): Promise<Role[]> {
-  const batch = writeBatch(db)
-
-  roleMockData.forEach((role) => {
-    batch.set(doc(db, ROLES_COLLECTION, role.id), role, { merge: true })
+  return rbacRequest<Role>("/api/admin/roles", {
+    method: "PATCH",
+    body: JSON.stringify({ role }),
   })
-
-  await batch.commit()
+}
+export async function deleteRole(roleId: string): Promise<void> {
+  await rbacRequest("/api/admin/roles?id=" + encodeURIComponent(roleId), {
+    method: "DELETE",
+  })
+}
+export async function seedRolesWithClient(): Promise<Role[]> {
+  await rbacRequest("/api/admin/roles", {
+    method: "POST",
+    body: JSON.stringify({ seed: true }),
+  })
   return getRoles()
 }
-
-/**
- * Generate a stable role id from a role name.
- * e.g. "Super Admin" -> "role-super-admin"
- */
 export function generateRoleId(name: string): string {
   const slug = name
     .toLowerCase()
@@ -70,5 +38,5 @@ export function generateRoleId(name: string): string {
     .replace(/[̀-ͯ]/g, "")
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/(^-|-$)+/g, "")
-  return `role-${slug}`
+  return "role-" + slug
 }

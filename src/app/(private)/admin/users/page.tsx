@@ -31,16 +31,17 @@ import { StatCards } from "@/modules/users/components/stat-cards"
 import { getUserColumns } from "@/modules/users/components/user-columns"
 import { UserDataTable } from "@/modules/users/components/user-data-table"
 import { UserFormDialog } from "@/modules/users/components/user-form-dialog"
-import { deleteRole, getRoles, seedRolesWithClient } from "@/modules/users/services/role-services"
 import {
-  getUserRoles,
-  removeAllAssignmentsForRole,
-} from "@/modules/users/services/user-role-services"
-import { deleteUserViaApi, getUsers } from "@/modules/users/services/user-services"
-import type {
-  Role,
-  User,
-} from "@/modules/users/services/types/user-types"
+  deleteRole,
+  getRoles,
+  seedRolesWithClient,
+} from "@/modules/users/services/role-services"
+import { getUserRoles } from "@/modules/users/services/user-role-services"
+import {
+  deleteUserViaApi,
+  getUsers,
+} from "@/modules/users/services/user-services"
+import type { Role, User } from "@/modules/users/services/types/user-types"
 
 export default function UsersPage() {
   const [users, setUsers] = useState<User[]>([])
@@ -189,13 +190,12 @@ export default function UsersPage() {
   const confirmDeleteRole = async () => {
     if (!pendingDelete || pendingDelete.kind !== "role") return
     try {
-      await removeAllAssignmentsForRole(pendingDelete.roleId)
       await deleteRole(pendingDelete.roleId)
       toast.success("Đã xóa role")
       await refreshAll()
     } catch (error) {
       console.error(error)
-      toast.error("Xóa role thất bại")
+      toast.error(error instanceof Error ? error.message : "Xóa role thất bại")
     } finally {
       setPendingDelete(null)
     }
@@ -247,9 +247,12 @@ export default function UsersPage() {
     <>
       {/* Page Header */}
       <div className="flex flex-col gap-2 px-4 md:px-6">
-        <h1 className="text-2xl font-bold tracking-tight">Người dùng & Phân quyền</h1>
+        <h1 className="text-2xl font-bold tracking-tight">
+          Người dùng & Phân quyền
+        </h1>
         <p className="text-muted-foreground">
-          Quản lý tài khoản Firebase Auth và gán role cho người dùng trong hệ thống.
+          Quản lý tài khoản Firebase Auth và gán role cho người dùng trong hệ
+          thống.
         </p>
       </div>
 
@@ -280,9 +283,9 @@ export default function UsersPage() {
               <CardHeader>
                 <CardTitle>Quản lý người dùng</CardTitle>
                 <CardDescription>
-                  Danh sách được lấy trực tiếp từ Firebase Auth và ghép với profile
-                  trong Firestore. Mỗi người dùng có một tài khoản Auth với uid tương
-                  ứng.
+                  Danh sách được lấy trực tiếp từ Firebase Auth và ghép với
+                  profile trong Firestore. Mỗi người dùng có một tài khoản Auth
+                  với uid tương ứng.
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -302,8 +305,8 @@ export default function UsersPage() {
               <CardHeader>
                 <CardTitle>Quản lý Role</CardTitle>
                 <CardDescription>
-                  Định nghĩa các role trong hệ thống. Mỗi role có thể được gán cho nhiều
-                  người dùng thông qua tab Người dùng.
+                  Định nghĩa các role trong hệ thống. Mỗi role có thể được gán
+                  cho nhiều người dùng thông qua tab Người dùng.
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -351,17 +354,15 @@ export default function UsersPage() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              {pendingDelete?.kind === "user"
-                ? "Xóa người dùng"
-                : "Xóa role"}
+              {pendingDelete?.kind === "user" ? "Xóa người dùng" : "Xóa role"}
             </AlertDialogTitle>
             <AlertDialogDescription>
               {pendingDelete?.kind === "user" ? (
                 <>
                   Bạn có chắc muốn xóa người dùng{" "}
                   <span className="font-semibold">{pendingDelete.name}</span>?
-                  Hành động này sẽ xóa tài khoản Firebase Auth, profile Firestore và mọi
-                  role đã gán.
+                  Hành động này sẽ xóa tài khoản Firebase Auth, profile
+                  Firestore và mọi role đã gán.
                 </>
               ) : (
                 <>
@@ -373,7 +374,9 @@ export default function UsersPage() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel className="cursor-pointer">Hủy</AlertDialogCancel>
+            <AlertDialogCancel className="cursor-pointer">
+              Hủy
+            </AlertDialogCancel>
             <AlertDialogAction
               className="cursor-pointer bg-red-600 hover:bg-red-700"
               onClick={(e) => {

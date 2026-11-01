@@ -60,11 +60,22 @@ service cloud.firestore {
       allow read, write: if request.auth != null;
     }
 
+    // RBAC mutations only go through authenticated administrator APIs.
+    match /roles/{roleId} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+    match /users_roles/{assignmentId} {
+      allow read: if request.auth != null
+        && (resource.data.uid == request.auth.uid || isAdmin());
+      allow write: if false;
+    }
+
     // ─── Helper Functions ──────────────────────────────────────────
     function isAdmin() {
       return request.auth != null
-        && 'roles' in request.auth.token
-        && request.auth.token.roles.has('admin');
+        && (request.auth.token.get('email', '') == 'admin@claudecode.ai'
+          || exists(/databases/$(database)/documents/users_roles/$("ur-" + request.auth.uid + "-role-admin")));
     }
   }
 }
