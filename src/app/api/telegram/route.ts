@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
+import { getAdminApiErrorResponse } from "@/lib/auth/admin-api"
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -21,6 +22,8 @@ export async function OPTIONS() {
 }
 
 export async function POST(request: NextRequest) {
+  const denied = await getAdminApiErrorResponse(CORS_HEADERS)
+  if (denied) return denied
   const botToken = process.env.TELEGRAM_BOT_TOKEN
 
   if (!botToken) {

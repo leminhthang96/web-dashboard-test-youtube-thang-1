@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
 import { auth } from "./auth"
-import { canAccessPage, getHomePage } from "./lib/auth/permissions"
+import { canAccessPrivatePage, getHomePage } from "./lib/auth/permissions"
 
 export async function proxy(request: NextRequest) {
   const isApiRoute = request.nextUrl.pathname.startsWith("/api/")
@@ -39,12 +39,9 @@ export async function proxy(request: NextRequest) {
       new URL(getHomePage(session.user), request.url)
     )
   }
-  // Account settings and error pages remain available to signed-in users.
-  const isUtilityPage =
-    path.startsWith("/errors/") || path.startsWith("/settings/")
-  const target = path === "/customer" ? "/customers" : path
-  if (!isUtilityPage && !canAccessPage(session.user, target)) {
-    return NextResponse.redirect(new URL("/errors/forbidden", request.url))
+  if (!canAccessPrivatePage(session.user, path)) {
+    const deniedUrl = new URL("/errors/forbidden", request.url)
+    return NextResponse.rewrite(deniedUrl, { status: 403 })
   }
 
   return NextResponse.next()

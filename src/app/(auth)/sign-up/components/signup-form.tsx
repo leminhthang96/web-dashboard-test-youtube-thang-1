@@ -3,7 +3,6 @@
 import * as React from "react"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
-import { useRouter } from "next/navigation"
 import { z } from "zod"
 import { cn } from "@/lib/utils"
 import { signIn } from "next-auth/react"
@@ -53,7 +52,6 @@ export function SignupForm({
   className,
   ...props
 }: React.ComponentProps<"div">) {
-  const router = useRouter()
   const form = useForm<SignupFormValues>({
     resolver: zodResolver(signupFormSchema),
     defaultValues: {
@@ -92,7 +90,7 @@ export function SignupForm({
         throw new Error(result.error)
       }
 
-      router.push("/")
+      window.location.assign("/")
     } catch (error) {
       setGlobalError(getFirebaseAuthErrorMessage(error, "signup"))
     } finally {
@@ -116,7 +114,7 @@ export function SignupForm({
         throw new Error(result.error)
       }
 
-      router.push("/")
+      window.location.assign("/")
     } catch (error) {
       setGlobalError(getFirebaseAuthErrorMessage(error, "signup"))
     } finally {

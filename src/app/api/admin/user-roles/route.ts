@@ -87,11 +87,14 @@ export async function PUT(request: NextRequest) {
         db.collection("users_roles").where("uid", "==", uid)
       )
       old.docs.forEach((doc) => {
-        if (!roleIds.includes(doc.data().roleId)) tx.delete(doc.ref)
+        const roleId = doc.data().roleId
+        if (!roleIds.includes(roleId) || doc.id !== `ur-${uid}-${roleId}`) {
+          tx.delete(doc.ref)
+        }
       })
       roleIds.forEach((roleId) => {
-        if (old.docs.some((doc) => doc.data().roleId === roleId)) return
         const id = `ur-${uid}-${roleId}`
+        if (old.docs.some((doc) => doc.id === id && doc.data().roleId === roleId)) return
         tx.set(db.collection("users_roles").doc(id), {
           id,
           uid,

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { Resend } from "resend"
 import { z } from "zod"
+import { getAdminApiErrorResponse } from "@/lib/auth/admin-api"
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -27,6 +28,8 @@ export async function OPTIONS() {
 }
 
 export async function POST(request: NextRequest) {
+  const denied = await getAdminApiErrorResponse(CORS_HEADERS)
+  if (denied) return denied
   const apiKey = process.env.RESEND_API_KEY
 
   if (!apiKey) {

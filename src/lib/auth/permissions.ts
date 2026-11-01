@@ -37,6 +37,16 @@ export function canAccessPage(
   )
 }
 
+export function canAccessPrivatePage(
+  user: AdminAccessUser | null | undefined,
+  pathname: string
+): boolean {
+  if (!user) return false
+  if (pathname.startsWith("/settings/")) return true
+  if (pathname.startsWith("/errors/")) return true
+  return canAccessPage(user, pathname === "/customer" ? "/customers" : pathname)
+}
+
 export function getHomePage(user?: AdminAccessUser | null): string {
   for (const page of ["/dashboard", "/dashboard-3", "/documents", "/chat"]) {
     if (canAccessPage(user, page)) return page
@@ -50,8 +60,6 @@ export function isAdminIdentifier(value?: string | null): boolean {
 
 export function hasAdminAccess(user?: AdminAccessUser | null): boolean {
   return Boolean(
-    user?.isAdmin ||
-    isAdminIdentifier(user?.email) ||
     user?.roles?.includes(ADMIN_ROLE_ID)
   )
 }
@@ -64,6 +72,8 @@ export function hasDocumentManagerAccess(
   user?: AdminAccessUser | null
 ): boolean {
   return Boolean(
-    hasAdminAccess(user) || user?.roles?.includes(DOCUMENT_MANAGER_ROLE_ID)
+    hasAdminAccess(user) ||
+      (canAccessPage(user, "/documents") &&
+        user?.roles?.includes(DOCUMENT_MANAGER_ROLE_ID))
   )
 }

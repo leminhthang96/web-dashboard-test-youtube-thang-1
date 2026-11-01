@@ -1,32 +1,37 @@
 "use client"
 
+import { ShieldX, LogOut } from "lucide-react"
+import Link from "next/link"
+import { signOut, useSession } from "next-auth/react"
 import { Button } from "@/components/ui/button"
-import { useRouter } from "next/navigation"
-import Image from "next/image"
+import { getHomePage } from "@/lib/auth/permissions"
+import { signOutUser } from "@/lib/firebase/auth"
 
 export function ForbiddenError() {
-  const router = useRouter()
-
+  const { data: session } = useSession()
+  const home = getHomePage(session?.user)
+  async function changeAccount() {
+    try { await signOutUser() } finally { await signOut({ callbackUrl: "/sign-in" }) }
+  }
   return (
-    <div className='mx-auto flex min-h-dvh flex-col items-center justify-center gap-8 p-8 md:gap-12 md:p-16'>
-      <Image
-        src='https://ui.shadcn.com/placeholder.svg'
-        alt='placeholder image'
-        width={960}
-        height={540}
-        className='aspect-video w-240 rounded-xl object-cover dark:brightness-[0.95] dark:invert'
-      />
-      <div className='text-center'>
-        <h1 className='mb-4 text-3xl font-bold'>403</h1>
-        <h2 className="mb-3 text-2xl font-semibold">Forbidden</h2>
-        <p>Access to this resource is forbidden. You don&apos;t have the necessary permissions to view this page.</p>
-        <div className='mt-6 flex items-center justify-center gap-4 md:mt-8'>
-          <Button className='cursor-pointer' onClick={() => router.push('/')}>Go Back Home</Button>
-          <Button variant='outline' className='flex cursor-pointer items-center gap-1' onClick={() => router.push('#')}>
-            Contact Us
-          </Button>
-        </div>
+    <main className="mx-auto flex min-h-dvh max-w-xl flex-col items-center justify-center gap-6 px-6 text-center">
+      <div className="rounded-full bg-destructive/10 p-5 text-destructive">
+        <ShieldX className="size-12" aria-hidden="true" />
       </div>
-    </div>
+      <p className="text-sm font-semibold tracking-widest text-muted-foreground">403</p>
+      <h1 className="text-3xl font-bold tracking-tight">Access Denied</h1>
+      <p className="text-muted-foreground">
+        Tài khoản của bạn không có quyền truy cập trang này. Vui lòng liên hệ
+        quản trị viên nếu bạn cần được cấp thêm quyền.
+      </p>
+      <div className="flex flex-wrap justify-center gap-3">
+        {home !== "/errors/forbidden" && (
+          <Button asChild><Link href={home}>Về trang của tôi</Link></Button>
+        )}
+        <Button variant="outline" onClick={() => void changeAccount()}>
+          <LogOut className="size-4" /> Đổi tài khoản
+        </Button>
+      </div>
+    </main>
   )
 }

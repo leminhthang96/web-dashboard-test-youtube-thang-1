@@ -2,31 +2,43 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
+    function hasRole(roleId) {
+      return request.auth != null
+        && exists(/databases/$(database)/documents/users_roles/$("ur-" + request.auth.uid + "-" + roleId))
+        && get(/databases/$(database)/documents/users_roles/$("ur-" + request.auth.uid + "-" + roleId)).data.uid == request.auth.uid
+        && get(/databases/$(database)/documents/users_roles/$("ur-" + request.auth.uid + "-" + roleId)).data.roleId == roleId
+        && exists(/databases/$(database)/documents/roles/$(roleId));
+    }
+    function isAdmin() { return hasRole('role-admin'); }
+    function canReadDocuments() {
+      return isAdmin() || hasRole('role-directors')
+        || hasRole('role-accounting') || hasRole('role-staffs');
+    }
+    function canManageDocuments() {
+      return isAdmin()
+        || (hasRole('role-document-manager') && canReadDocuments());
+    }
+    function canUseChat() { return isAdmin() || hasRole('role-customers'); }
 
-    // Shared customer inbox: signed-in dashboard users manage all submissions.
-
+    // Public landing-page lead capture remains create-only.
     match /customers/{customerId} {
-      allow read, update, delete: if request.auth != null;
-
-      // Landing-page submissions are create-only; no public read/update/delete.
-      allow create: if (request.auth == null
-        && request.resource.data.userId == "")
-        || request.auth != null;
+      function validPublicLead() {
+        return request.resource.data.keys().hasOnly([
+            'fullName', 'email', 'phoneNumber', 'serviceName', 'userId', 'createdAt'
+          ])
+          && request.resource.data.userId == ''
+          && request.resource.data.fullName is string
+          && request.resource.data.email is string
+          && request.resource.data.phoneNumber is string
+          && request.resource.data.serviceName is string
+          && request.resource.data.createdAt == request.time;
+      }
+      allow create: if validPublicLead() || isAdmin();
+      allow read, update, delete: if isAdmin();
     }
 
-    // ─── Users Collection ─────────────────────────────────────────
-    // Users can read and update their own profile data.
-    match /users/{userId} {
-      allow read: if request.auth != null
-        && (request.auth.uid == userId || isAdmin());
-      allow write: if request.auth != null
-        && request.auth.uid == userId;
-    }
-
-    // ─── Tasks Collection ─────────────────────────────────────────
-    // Only the creator may edit/delete; creator cannot be reassigned.
     match /tasks/{taskId} {
-      function canReadTask() {
+      function ownOrReporter() {
         return request.auth != null
           && (resource.data.get('createdBy', '') == request.auth.uid
             || resource.data.get('reporter', '') == request.auth.uid);
@@ -36,31 +48,52 @@ service cloud.firestore {
           || (request.resource.data.reporter is string
             && request.resource.data.reporter.size() <= 128);
       }
-      allow list: if canReadTask();
-      // Create transactions must be able to check that a new ID is unused.
-      allow get: if request.auth != null
-        && (!exists(/databases/$(database)/documents/tasks/$(taskId))
-          || canReadTask());
-      allow create: if request.auth != null
-        && request.resource.data.createdBy == request.auth.uid
-        && validReporter();
-      allow update: if request.auth != null
+      allow list: if isAdmin() && ownOrReporter();
+      // Create transactions read a missing document before creating a new ID.
+      allow get: if isAdmin()
+        && (!exists(/databases/$(database)/documents/tasks/$(taskId)) || ownOrReporter());
+      allow create: if isAdmin()
+        && request.resource.data.createdBy == request.auth.uid && validReporter();
+      allow update: if isAdmin()
         && resource.data.createdBy == request.auth.uid
-        && request.resource.data.createdBy == resource.data.createdBy
-        && validReporter();
-      allow delete: if request.auth != null
-        && resource.data.createdBy == request.auth.uid;
+        && request.resource.data.createdBy == resource.data.createdBy && validReporter();
+      allow delete: if isAdmin() && resource.data.createdBy == request.auth.uid;
     }
 
-    // ─── Folders Collection ────────────────────────────────────────
-    // Folders organize documents and are shared across all users (no RLS).
-    // The Document Manager role restriction for create/update/delete is
-    // enforced at the application layer.
+    match /documents/{documentId} {
+      allow read: if canReadDocuments();
+      allow write: if canManageDocuments();
+      match /attachments/{attachmentId} {
+        allow read: if canReadDocuments();
+        allow write: if canManageDocuments();
+      }
+    }
     match /folders/{folderId} {
-      allow read, write: if request.auth != null;
+      allow read: if canReadDocuments();
+      allow write: if canManageDocuments();
     }
 
-    // RBAC mutations only go through authenticated administrator APIs.
+    // Existing shared Chat data, restricted to the Chat roles.
+    match /conversations/{id} { allow read, write: if canUseChat(); }
+    match /messages/{id} { allow read, write: if canUseChat(); }
+    match /chatUsers/{id} { allow read: if canUseChat(); allow write: if isAdmin(); }
+    match /calendars/{id} { allow read, write: if isAdmin(); }
+    match /events/{id} { allow read, write: if isAdmin(); }
+    match /eventDates/{id} { allow read, write: if isAdmin(); }
+
+    match /users/{uid} {
+      function isSelf() { return request.auth != null && request.auth.uid == uid; }
+      function profileFields() {
+        return ['uid', 'name', 'displayName', 'email', 'photoURL', 'address',
+          'phone', 'gender', 'status', 'createdAt', 'updatedAt', 'notifications'];
+      }
+      allow read: if isSelf() || isAdmin();
+      allow create: if isAdmin()
+        || (isSelf() && request.resource.data.keys().hasOnly(profileFields()));
+      allow update: if isAdmin()
+        || (isSelf() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(profileFields()));
+      allow delete: if isSelf() || isAdmin();
+    }
     match /roles/{roleId} {
       allow read: if request.auth != null;
       allow write: if false;
@@ -68,14 +101,9 @@ service cloud.firestore {
     match /users_roles/{assignmentId} {
       allow read: if request.auth != null
         && (resource.data.uid == request.auth.uid || isAdmin());
+      // Admin SDK routes are the only writers; no client can grant itself a role.
       allow write: if false;
     }
-
-    // ─── Helper Functions ──────────────────────────────────────────
-    function isAdmin() {
-      return request.auth != null
-        && (request.auth.token.get('email', '') == 'admin@claudecode.ai'
-          || exists(/databases/$(database)/documents/users_roles/$("ur-" + request.auth.uid + "-role-admin")));
-    }
+    // All other paths are denied by default. No permissive catch-all.
   }
 }

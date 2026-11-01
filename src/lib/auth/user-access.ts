@@ -1,6 +1,6 @@
 import { getAdminDb } from "@/lib/firebase/admin"
 
-import { ADMIN_ROLE_ID, isAdminIdentifier } from "@/lib/auth/permissions"
+import { ADMIN_ROLE_ID } from "@/lib/auth/permissions"
 
 type UserAuthorization = {
   roles: string[]
@@ -9,22 +9,27 @@ type UserAuthorization = {
 
 export async function getUserAuthorization(
   uid: string,
-  email?: string | null,
+  _email?: string | null,
   _username?: string | null
 ): Promise<UserAuthorization> {
-  if (isAdminIdentifier(email)) {
-    return { roles: [ADMIN_ROLE_ID], isAdmin: true }
-  }
-
   try {
     const db = getAdminDb()
     const assignmentsSnapshot = await db
       .collection("users_roles")
       .where("uid", "==", uid)
       .get()
-    const roles = assignmentsSnapshot.docs
-      .map((document) => document.data().roleId)
-      .filter((roleId): roleId is string => typeof roleId === "string")
+    const roleIds = [...new Set(assignmentsSnapshot.docs
+      .map((document) => {
+        const roleId = document.data().roleId
+        // Match the deterministic relationship checked by Security Rules.
+        return typeof roleId === "string" && /^role-[a-z0-9-]+$/.test(roleId)
+          && document.id === `ur-${uid}-${roleId}` ? roleId : null
+      })
+      .filter((roleId): roleId is string => roleId !== null))]
+    const roleDocuments = roleIds.length
+      ? await db.getAll(...roleIds.map((id) => db.collection("roles").doc(id)))
+      : []
+    const roles = roleDocuments.filter((document) => document.exists).map((document) => document.id)
 
     // Names and editable profile fields must never grant administrator access.
     const isAdmin = roles.includes(ADMIN_ROLE_ID)

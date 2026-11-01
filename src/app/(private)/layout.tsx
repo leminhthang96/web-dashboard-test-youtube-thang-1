@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { PrivateAccessBoundary } from "@/components/private-access-boundary";
 import { AppSidebar } from "@/components/app-sidebar";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
@@ -17,6 +18,7 @@ export default function DashboardLayout({
   const { config } = useSidebarConfig();
 
   return (
+    <PrivateAccessBoundary>
     <SidebarProvider
       style={{
         "--sidebar-width": "16rem",
@@ -70,5 +72,6 @@ export default function DashboardLayout({
         onOpenChange={setThemeCustomizerOpen}
       />
     </SidebarProvider>
+    </PrivateAccessBoundary>
   );
 }

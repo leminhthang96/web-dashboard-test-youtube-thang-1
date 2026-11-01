@@ -2,7 +2,6 @@
 
 import * as React from "react"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { useRouter } from "next/navigation"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
 import { cn } from "@/lib/utils"
@@ -41,7 +40,6 @@ export function LoginForm({
   className,
   ...props
 }: React.ComponentProps<"div">) {
-  const router = useRouter()
   const [isGoogleLoading, setIsGoogleLoading] = React.useState(false)
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginFormSchema),
@@ -69,8 +67,7 @@ export function LoginForm({
         throw new Error(result.error)
       }
 
-      router.push("/")
-      router.refresh()
+      window.location.assign("/")
     } catch (error) {
       form.setError("root", {
         message: getFirebaseAuthErrorMessage(error),
@@ -94,8 +91,7 @@ export function LoginForm({
         throw new Error(result.error)
       }
 
-      router.push("/")
-      router.refresh()
+      window.location.assign("/")
     } catch (error) {
       form.setError("root", {
         message: getFirebaseAuthErrorMessage(error),
