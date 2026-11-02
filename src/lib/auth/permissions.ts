@@ -51,7 +51,8 @@ export function getHomePage(user?: AdminAccessUser | null): string {
   for (const page of ["/dashboard", "/dashboard-3", "/documents", "/chat"]) {
     if (canAccessPage(user, page)) return page
   }
-  return "/errors/forbidden"
+  // Accounts without an assigned business role can still use their own profile.
+  return "/settings/user"
 }
 
 export function isAdminIdentifier(value?: string | null): boolean {
@@ -59,9 +60,7 @@ export function isAdminIdentifier(value?: string | null): boolean {
 }
 
 export function hasAdminAccess(user?: AdminAccessUser | null): boolean {
-  return Boolean(
-    user?.roles?.includes(ADMIN_ROLE_ID)
-  )
+  return Boolean(user?.roles?.includes(ADMIN_ROLE_ID))
 }
 
 /**
@@ -73,7 +72,7 @@ export function hasDocumentManagerAccess(
 ): boolean {
   return Boolean(
     hasAdminAccess(user) ||
-      (canAccessPage(user, "/documents") &&
-        user?.roles?.includes(DOCUMENT_MANAGER_ROLE_ID))
+    (canAccessPage(user, "/documents") &&
+      user?.roles?.includes(DOCUMENT_MANAGER_ROLE_ID))
   )
 }

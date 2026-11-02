@@ -40,8 +40,9 @@ export async function proxy(request: NextRequest) {
     )
   }
   if (!canAccessPrivatePage(session.user, path)) {
-    const deniedUrl = new URL("/errors/forbidden", request.url)
-    return NextResponse.rewrite(deniedUrl, { status: 403 })
+    return NextResponse.redirect(
+      new URL(getHomePage(session.user), request.url)
+    )
   }
 
   return NextResponse.next()

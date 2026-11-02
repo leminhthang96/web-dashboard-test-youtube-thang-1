@@ -8,20 +8,24 @@
 | role-staffs | Staffs | ISO Documents |
 | role-customers | Customers | Chat |
 
-- Nhiều role: hợp các quyền. Không có role hợp lệ: không có menu nghiệp vụ.
+- Nhiều role: hợp các quyền. Không có role hợp lệ: vẫn đăng nhập được,
+  vào hồ sơ cá nhân `/settings/user`, không có menu nghiệp vụ.
 - ISO Documents dùng `/documents`. Dashboard 3 dùng `/dashboard-3`, hiện là
   trang chờ nội dung báo cáo, không hiển thị số liệu giả.
-- Sidebar và proxy dùng cùng `canAccessPage`. Mở URL trực tiếp cũng phải qua
-  kiểm tra role. Trang tài khoản cá nhân `/settings/*` và trang lỗi vẫn dùng được.
+- Sidebar và tìm kiếm menu dùng cùng `canAccessPage`. Proxy và lớp bảo vệ
+  giao diện dùng `canAccessPrivatePage`. Mở URL ngoài quyền sẽ chuyển về trang
+  được phép theo role, không hiển thị 403. Trang tài khoản cá nhân `/settings/*`
+  vẫn dùng được. Các trang lỗi mẫu có sẵn được giữ nguyên.
 - Trang vào sau đăng nhập chọn theo role; không mặc định đưa mọi người vào Dashboard 1.
 - `users_roles`: `{ id, uid, roleId, createdAt }`. `uid` là Firebase Auth UID.
   ID liên kết ổn định: `ur-<uid>-<roleId>`. Timestamp do server tạo.
 - Chỉ API `/api/admin/roles` và `/api/admin/user-roles` có kiểm tra session admin
   mới ghi phân quyền. Không lấy role từ dữ liệu mẫu khi Firestore lỗi.
-- Email quản trị gốc `admin@claudecode.ai` được giữ để tránh khóa quản trị.
-  Tên hiển thị và các trường profile người dùng tự sửa không cấp quyền admin.
-- Thay đổi role được tải lại khi NextAuth cập nhật session. Reload trang để
-  sidebar nhận session mới sau khi quản trị viên thay quyền.
+- Quyền chỉ lấy từ liên kết `users_roles` hợp lệ và role tồn tại trong `roles`.
+  Email, tên hiển thị và cờ `isAdmin` trong profile không tự cấp quyền admin.
+- Session cập nhật khi quay lại cửa sổ và mỗi 30 giây. Khi đổi tài khoản hoặc
+  role, nội dung riêng được tải lại theo danh tính mới; bộ nhớ Chat được xóa khi
+  Firebase Auth đổi trạng thái. Không dựng trang ngoài quyền trong lúc chuyển trang.
 
 ## Seed
 
@@ -38,10 +42,24 @@ Ba tài khoản đã được người dùng chỉ định:
 ## Triển khai
 
 Deploy mã lên Vercel với Firebase Admin được cấu hình trong Production.
-Phải xuất bản Rules chặn client ghi trực tiếp `roles`/`users_roles`; kiểm tra
-không có wildcard khác cấp lại quyền ghi hai collection này. Admin SDK trong
-API sử dụng IAM, không phụ thuộc quyền ghi client.
+`firestore.rules` đã được kiểm thử bằng Firebase Emulator và xuất bản vào
+project `dashboard-test--thang-1` ngày 02/11/2026, ruleset
+`dbc849a3-6e9e-48cc-be3b-bb9d119dd1e2`. Bản sao Rules trước khi xuất bản ở
+`.cache/firestore-rbac-publish-backup.json` (không đưa vào Git).
 
-Đổi sidebar/proxy không thay thế Firestore Rules hoặc kiểm tra quyền riêng
-của từng API. Các API công khai nhận lead và quy tắc dữ liệu của module khác
-không được thay đổi bởi cấu hình menu này.
+- Client không được ghi trực tiếp `roles`/`users_roles`; API quản trị kiểm tra
+  session admin trước khi dùng Admin SDK.
+- Documents: các role có menu ISO Documents được đọc; ghi theo quyền quản lý
+  tài liệu hiện có. Chat: Administrators và Customers.
+- Tasks: Administrators có quyền module, đồng thời giữ RLS `createdBy`/`reporter`
+  khi đọc và chỉ người tạo được sửa/xóa.
+- Customers, Calendar: Administrators. API nhận lead công khai vẫn được tạo
+  khách hàng với dữ liệu hợp lệ, không được đọc/sửa/xóa dữ liệu.
+- Mỗi tài khoản được đọc/sửa hồ sơ của mình, không được tự gán role.
+
+Firestore Rules kiểm soát dữ liệu Firestore; không thay thế Storage Rules cho
+file nhị phân. Admin SDK sử dụng IAM, nên API phải tự kiểm tra quyền.
+
+Thay đổi mã Sidebar/điều hướng cần được deploy lên Vercel riêng. Không seed lại
+dữ liệu để áp dụng RBAC. Kiểm thử điều hướng: đủ 5 role, hợp nhiều role,
+tài khoản chưa có role, URL trực tiếp và đăng nhập/đăng xuất.

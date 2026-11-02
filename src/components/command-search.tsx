@@ -2,6 +2,8 @@
 
 import * as React from "react"
 import { useRouter } from "next/navigation"
+import { useSession } from "next-auth/react"
+import { canAccessPage } from "@/lib/auth/permissions"
 import { Command as CommandPrimitive } from "cmdk"
 import {
   Search,
@@ -11,6 +13,7 @@ import {
   CheckSquare,
   MessageCircle,
   Calendar,
+  FileText,
   Shield,
   AlertTriangle,
   type LucideIcon,
@@ -55,7 +58,10 @@ const CommandList = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <CommandPrimitive.List
     ref={ref}
-    className={cn("max-h-[400px] overflow-y-auto overflow-x-hidden pb-2", className)}
+    className={cn(
+      "max-h-[400px] overflow-y-auto overflow-x-hidden pb-2",
+      className
+    )}
     {...props}
   />
 ))
@@ -117,51 +123,107 @@ interface CommandSearchProps {
 
 export function CommandSearch({ open, onOpenChange }: CommandSearchProps) {
   const router = useRouter()
+  const { data: session } = useSession()
   const commandRef = React.useRef<HTMLDivElement>(null)
 
   const searchItems: SearchItem[] = [
     // Dashboards
-    { title: "Dashboard 1", url: "/dashboard", group: "Dashboards", icon: LayoutDashboard },
-    { title: "Dashboard 2", url: "/dashboard-2", group: "Dashboards", icon: LayoutPanelLeft },
-    { title: "Dashboard 3", url: "/dashboard-3", group: "Dashboards", icon: Megaphone },
+    {
+      title: "Dashboard 1",
+      url: "/dashboard",
+      group: "Dashboards",
+      icon: LayoutDashboard,
+    },
+    {
+      title: "Dashboard 2",
+      url: "/dashboard-2",
+      group: "Dashboards",
+      icon: LayoutPanelLeft,
+    },
+    {
+      title: "Dashboard 3",
+      url: "/dashboard-3",
+      group: "Dashboards",
+      icon: Megaphone,
+    },
 
     // Apps
     { title: "Tasks", url: "/tasks", group: "Apps", icon: CheckSquare },
     { title: "Chat", url: "/chat", group: "Apps", icon: MessageCircle },
     { title: "Calendar", url: "/calendar", group: "Apps", icon: Calendar },
+    {
+      title: "ISO Documents",
+      url: "/documents",
+      group: "Apps",
+      icon: FileText,
+    },
 
     // Auth Pages
     { title: "Sign In", url: "/sign-in", group: "Auth Pages", icon: Shield },
     { title: "Sign Up", url: "/sign-up", group: "Auth Pages", icon: Shield },
-    { title: "Forgot Password", url: "/forgot-password", group: "Auth Pages", icon: Shield },
+    {
+      title: "Forgot Password",
+      url: "/forgot-password",
+      group: "Auth Pages",
+      icon: Shield,
+    },
     // Errors
-    { title: "Unauthorized", url: "/errors/unauthorized", group: "Errors", icon: AlertTriangle },
-    { title: "Forbidden", url: "/errors/forbidden", group: "Errors", icon: AlertTriangle },
-    { title: "Not Found", url: "/errors/not-found", group: "Errors", icon: AlertTriangle },
-    { title: "Internal Server Error", url: "/errors/internal-server-error", group: "Errors", icon: AlertTriangle },
-    { title: "Under Maintenance", url: "/errors/under-maintenance", group: "Errors", icon: AlertTriangle },
-
+    {
+      title: "Unauthorized",
+      url: "/errors/unauthorized",
+      group: "Errors",
+      icon: AlertTriangle,
+    },
+    {
+      title: "Forbidden",
+      url: "/errors/forbidden",
+      group: "Errors",
+      icon: AlertTriangle,
+    },
+    {
+      title: "Not Found",
+      url: "/errors/not-found",
+      group: "Errors",
+      icon: AlertTriangle,
+    },
+    {
+      title: "Internal Server Error",
+      url: "/errors/internal-server-error",
+      group: "Errors",
+      icon: AlertTriangle,
+    },
+    {
+      title: "Under Maintenance",
+      url: "/errors/under-maintenance",
+      group: "Errors",
+      icon: AlertTriangle,
+    },
 
     // Pages
   ]
 
-  const groupedItems = searchItems.reduce((acc, item) => {
-    if (!acc[item.group]) {
-      acc[item.group] = []
-    }
-    acc[item.group].push(item)
-    return acc
-  }, {} as Record<string, SearchItem[]>)
+  const groupedItems = searchItems.reduce(
+    (acc, item) => {
+      if (!canAccessPage(session?.user, item.url)) return acc
+      if (!acc[item.group]) {
+        acc[item.group] = []
+      }
+      acc[item.group].push(item)
+      return acc
+    },
+    {} as Record<string, SearchItem[]>
+  )
 
   const handleSelect = (url: string) => {
+    if (!canAccessPage(session?.user, url)) return
     router.push(url)
     onOpenChange(false)
     // Bounce effect like Vercel
     if (commandRef.current) {
-      commandRef.current.style.transform = 'scale(0.96)'
+      commandRef.current.style.transform = "scale(0.96)"
       setTimeout(() => {
         if (commandRef.current) {
-          commandRef.current.style.transform = ''
+          commandRef.current.style.transform = ""
         }
       }, 100)
     }
