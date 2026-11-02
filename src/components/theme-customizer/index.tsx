@@ -18,6 +18,19 @@ import { LayoutTab } from "./layout-tab"
 import { ImportModal } from "./import-modal"
 import { cn } from "@/lib/utils"
 import type { ImportedTheme } from "@/types/theme-customizer"
+import { themes } from "@/config/theme-data"
+
+const PRESET_STORAGE_KEY = "dashboard-theme-preset"
+
+function getSavedPreset() {
+  try {
+    const saved = window.localStorage.getItem(PRESET_STORAGE_KEY)
+    return themes.some((theme) => theme.value === saved) ? saved! : "default"
+  } catch {
+    // SSR and browsers with storage disabled still use the default palette.
+    return "default"
+  }
+}
 
 interface ThemeCustomizerProps {
   open: boolean
@@ -37,7 +50,20 @@ export function ThemeCustomizer({ open, onOpenChange }: ThemeCustomizerProps) {
     useSidebarConfig()
 
   const [activeTab, setActiveTab] = React.useState("theme")
-  const [selectedTheme, setSelectedTheme] = React.useState("default")
+  const [selectedTheme, updateSelectedTheme] = React.useState(getSavedPreset)
+  const setSelectedTheme = React.useCallback((preset: string) => {
+    updateSelectedTheme(preset)
+    try {
+      if (themes.some((theme) => theme.value === preset)) {
+        window.localStorage.setItem(PRESET_STORAGE_KEY, preset)
+      } else {
+        // An imported theme replaces the previously selected built-in preset.
+        window.localStorage.removeItem(PRESET_STORAGE_KEY)
+      }
+    } catch {
+      // Choosing a color still works when persistent storage is unavailable.
+    }
+  }, [])
   const [selectedRadius, setSelectedRadius] = React.useState("0.5rem")
   const [importModalOpen, setImportModalOpen] = React.useState(false)
   const [importedTheme, setImportedTheme] =
@@ -79,8 +105,9 @@ export function ThemeCustomizer({ open, onOpenChange }: ThemeCustomizerProps) {
     setImportModalOpen(true)
   }
 
-  // Re-apply themes when theme mode changes
-  React.useEffect(() => {
+  // Restore the saved preset before painting the dashboard, also on login.
+  // Mode changes reuse the same preset's light/dark palette.
+  React.useLayoutEffect(() => {
     if (importedTheme) {
       applyImportedTheme(importedTheme, isDarkMode)
     } else if (selectedTheme) {
