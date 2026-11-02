@@ -7,6 +7,7 @@ declare module "next-auth" {
       id: string
       roles: string[]
       isAdmin: boolean
+      authorizationError?: boolean
     } & DefaultSession["user"]
   }
 
@@ -14,6 +15,8 @@ declare module "next-auth" {
     id?: string
     roles?: string[]
     isAdmin?: boolean
+    authorizationError?: boolean
+    firebaseIdToken?: string
   }
 }
 
@@ -22,5 +25,7 @@ declare module "next-auth/jwt" {
     uid?: string
     roles?: string[]
     isAdmin?: boolean
+    authorizationError?: boolean
+    firebaseIdToken?: string
   }
 }

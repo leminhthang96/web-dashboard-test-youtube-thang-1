@@ -17,6 +17,8 @@ async function verifyFirebaseIdToken(idToken: string) {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ idToken }),
+      cache: "no-store",
+      signal: AbortSignal.timeout(10000),
     }
   )
 
@@ -60,13 +62,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         }
 
         try {
-          const firebaseUser = await verifyFirebaseIdToken(
-            credentials.idToken
-          )
+          const firebaseUser = await verifyFirebaseIdToken(credentials.idToken)
           const authorization = await getUserAuthorization(
             firebaseUser.uid,
-            firebaseUser.email,
-            firebaseUser.name
+            credentials.idToken
           )
 
           return {
@@ -76,6 +75,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             image: firebaseUser.picture,
             roles: authorization.roles,
             isAdmin: authorization.isAdmin,
+            authorizationError: authorization.authorizationError,
+            firebaseIdToken: credentials.idToken,
           }
         } catch (error) {
           console.error("Error authorizing with Firebase ID Token:", error)
@@ -85,19 +86,37 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     }),
   ],
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger, session }) {
       if (user) {
         token.uid = user.id
         token.roles = user.roles
         token.isAdmin = user.isAdmin
+        token.authorizationError = user.authorizationError
+        token.firebaseIdToken = user.firebaseIdToken
       } else if (token.uid) {
+        // Session updates are untrusted: accept only a verified token for the
+        // same Firebase UID, never client-provided roles or administrator flags.
+        if (
+          trigger === "update" &&
+          typeof session?.firebaseIdToken === "string"
+        ) {
+          try {
+            const firebaseUser = await verifyFirebaseIdToken(
+              session.firebaseIdToken
+            )
+            if (firebaseUser.uid !== token.uid) return token
+            token.firebaseIdToken = session.firebaseIdToken
+          } catch {
+            return token
+          }
+        }
         const authorization = await getUserAuthorization(
           token.uid,
-          token.email,
-          token.name
+          token.firebaseIdToken
         )
         token.roles = authorization.roles
         token.isAdmin = authorization.isAdmin
+        token.authorizationError = authorization.authorizationError
       }
       return token
     },
@@ -106,6 +125,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         session.user.id = token.uid as string
         session.user.roles = token.roles ?? []
         session.user.isAdmin = token.isAdmin ?? false
+        session.user.authorizationError = token.authorizationError ?? false
       }
       return session
     },

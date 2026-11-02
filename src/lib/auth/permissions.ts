@@ -22,6 +22,7 @@ type AdminAccessUser = {
   email?: string | null
   roles?: string[]
   isAdmin?: boolean
+  authorizationError?: boolean
 }
 
 export function canAccessPage(
@@ -29,6 +30,7 @@ export function canAccessPage(
   pathname: string
 ): boolean {
   if (!user) return false
+  if (user.authorizationError) return false
   if (hasAdminAccess(user)) return true
   return (user.roles ?? []).some((role) =>
     (ROLE_PAGES[role] ?? []).some(
@@ -42,12 +44,15 @@ export function canAccessPrivatePage(
   pathname: string
 ): boolean {
   if (!user) return false
+  // The client boundary waits for role recovery before rendering this page.
+  if (user.authorizationError) return pathname === "/dashboard"
   if (pathname.startsWith("/settings/")) return true
   if (pathname.startsWith("/errors/")) return true
   return canAccessPage(user, pathname === "/customer" ? "/customers" : pathname)
 }
 
 export function getHomePage(user?: AdminAccessUser | null): string {
+  if (user?.authorizationError) return "/dashboard"
   for (const page of ["/dashboard", "/dashboard-3", "/documents", "/chat"]) {
     if (canAccessPage(user, page)) return page
   }
@@ -60,7 +65,9 @@ export function isAdminIdentifier(value?: string | null): boolean {
 }
 
 export function hasAdminAccess(user?: AdminAccessUser | null): boolean {
-  return Boolean(user?.roles?.includes(ADMIN_ROLE_ID))
+  return Boolean(
+    !user?.authorizationError && user?.roles?.includes(ADMIN_ROLE_ID)
+  )
 }
 
 /**

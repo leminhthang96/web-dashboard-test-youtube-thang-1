@@ -15,7 +15,7 @@ export function PrivateAccessBoundary({
 }: {
   children: React.ReactNode
 }) {
-  const { data: session, status } = useSession()
+  const { data: session, status, update } = useSession()
   const pathname = usePathname()
   const router = useRouter()
   const [firebaseUid, setFirebaseUid] = useState<string | null | undefined>(
@@ -65,6 +65,28 @@ export function PrivateAccessBoundary({
           }}
         >
           Đăng nhập lại
+        </Button>
+      </div>
+    )
+  }
+  if (session.user.authorizationError) {
+    return (
+      <div role="status" className="space-y-4 p-8">
+        <p>Chưa tải được quyền tài khoản. Vui lòng thử lại.</p>
+        <Button
+          onClick={async () => {
+            const user = auth.currentUser
+            if (user?.uid !== session.user.id) return
+            const refreshed = await update({
+              firebaseIdToken: await user.getIdToken(true),
+            })
+            if (refreshed?.user && !refreshed.user.authorizationError) {
+              router.replace(getHomePage(refreshed.user))
+              router.refresh()
+            }
+          }}
+        >
+          Tải lại
         </Button>
       </div>
     )

@@ -23,6 +23,16 @@
   mới ghi phân quyền. Không lấy role từ dữ liệu mẫu khi Firestore lỗi.
 - Quyền chỉ lấy từ liên kết `users_roles` hợp lệ và role tồn tại trong `roles`.
   Email, tên hiển thị và cờ `isAdmin` trong profile không tự cấp quyền admin.
+- Tải role bằng Firestore REST với Firebase ID token của người đăng nhập, cùng
+  `NEXT_PUBLIC_FIREBASE_PROJECT_ID` với trình duyệt. Không cần Admin SDK để tải
+  menu; Admin SDK vẫn cần cho các API quản trị. REST dùng Firebase Security Rules:
+  https://firebase.google.com/docs/firestore/use-rest-api
+- ID token chỉ nằm trong JWT mã hóa của NextAuth, không trả qua session JSON.
+  Khi đồng bộ token, server xác minh UID phải trùng phiên hiện tại; không nhận
+  role hoặc cờ admin do client gửi lên. Token được làm mới từ Firebase Auth.
+- Lỗi tải role được phân biệt với tài khoản chưa có role: không chuyển nhầm
+  sang Profile Settings và không tự cấp quyền. Phiên cũ được đồng bộ lại bằng
+  Firebase Auth; sau khi phục hồi, chuyển về trang tương ứng với role.
 - Session cập nhật khi quay lại cửa sổ và mỗi 30 giây. Khi đổi tài khoản hoặc
   role, nội dung riêng được tải lại theo danh tính mới; bộ nhớ Chat được xóa khi
   Firebase Auth đổi trạng thái. Không dựng trang ngoài quyền trong lúc chuyển trang.
@@ -63,3 +73,8 @@ file nhị phân. Admin SDK sử dụng IAM, nên API phải tự kiểm tra quy
 Thay đổi mã Sidebar/điều hướng cần được deploy lên Vercel riêng. Không seed lại
 dữ liệu để áp dụng RBAC. Kiểm thử điều hướng: đủ 5 role, hợp nhiều role,
 tài khoản chưa có role, URL trực tiếp và đăng nhập/đăng xuất.
+
+`scripts/verify-rbac-session.cjs` kiểm thử Firestore REST và phiên NextAuth trên
+Firebase Emulator: 5 role, phục hồi phiên cũ, lỗi kết nối, chống giả mạo role/UID,
+thu hồi role. Script chỉ chạy với `FIRESTORE_EMULATOR_HOST=127.0.0.1:<port>`,
+không đăng nhập hoặc ghi dữ liệu lên production.
